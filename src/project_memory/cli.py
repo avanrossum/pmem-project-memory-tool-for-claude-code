@@ -163,6 +163,10 @@ def index(force: bool, dry_run: bool) -> None:
 
     try:
         result = run_index(config, force=force, dry_run=dry_run, log=_log)
+    except KeyboardInterrupt:
+        click.echo()
+        click.echo(click.style("  Interrupted — index state saved.", fg="yellow", bold=True))
+        sys.exit(130)
     except Exception as e:
         click.echo()
         click.echo(click.style(f"  ERROR: {e}", fg="red", bold=True))

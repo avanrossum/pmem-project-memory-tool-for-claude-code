@@ -21,27 +21,21 @@ If these don't exist, adapt to whatever documentation the project uses.
 
 ## Step 2 — Refresh Memory Index
 
-If this project has a `.memory/config.json` (i.e. the project memory tool is set up), run an incremental index:
+If this project has a `.memory/config.json` (i.e. the project memory tool is set up):
 
-```bash
-pmem index
-```
+**Use the `memory_reindex` MCP tool** to refresh the index. Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
 
-This is fast when nothing has changed (just file hashing, no embedding). It ensures any manual documentation edits made between sessions are captured.
-
-If `pmem` is not installed or `.memory/config.json` does not exist, skip this step silently.
+If the `memory_reindex` MCP tool is not available (e.g. MCP server not registered), skip this step silently.
 
 ---
 
 ## Step 3 — Check Memory Status
 
-If the memory index exists, run:
-
-```bash
-pmem status
-```
+If the memory index exists, use the `memory_status` MCP tool to check freshness.
 
 Briefly note the state (indexed files, stale files) but do not print the full output to the user unless something looks wrong (e.g. many stale files after indexing, or zero indexed files).
+
+If the MCP tool is not available, skip silently.
 
 ---
 

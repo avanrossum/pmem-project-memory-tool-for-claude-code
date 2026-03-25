@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import chromadb
@@ -13,6 +14,20 @@ from project_memory.indexer import Chunk
 COLLECTION_NAME = "project_memory"
 
 
+def _cleanup_stale_locks(chroma_dir: Path) -> None:
+    """Remove stale SQLite WAL/SHM lock files left by crashed processes.
+
+    These files prevent ChromaDB from opening after an interrupted index run.
+    Safe to remove when no other process is using the database.
+    """
+    for pattern in ("*.wal", "*.shm"):
+        for lock_file in chroma_dir.rglob(pattern):
+            try:
+                lock_file.unlink()
+            except OSError:
+                pass
+
+
 class ChunkStore:
     """Wrapper around ChromaDB for storing and querying embedded chunks."""
 
@@ -20,11 +35,20 @@ class ChunkStore:
         """Initialize the ChromaDB client and collection."""
         chroma_dir = config.memory_dir / "chroma"
         chroma_dir.mkdir(parents=True, exist_ok=True)
-        self._client = chromadb.PersistentClient(path=str(chroma_dir))
-        self._collection = self._client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
+        try:
+            self._client = chromadb.PersistentClient(path=str(chroma_dir))
+            self._collection = self._client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                metadata={"hnsw:space": "cosine"},
+            )
+        except Exception:
+            # If ChromaDB fails to open (likely stale locks), clean up and retry once
+            _cleanup_stale_locks(chroma_dir)
+            self._client = chromadb.PersistentClient(path=str(chroma_dir))
+            self._collection = self._client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                metadata={"hnsw:space": "cosine"},
+            )
 
     @property
     def count(self) -> int:
