@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+### Added
+- Server heartbeat logging (every 60s) for diagnosing idle server exits
+- `SERVER_STDIO_OPEN`, `SERVER_RUN_EXITED`, `SERVER_CANCELLED` lifecycle events in log
+- Full traceback logging on server crash
+
+### Fixed
+- `auto_reindex_on_query` now defaults to `false` — was causing unnecessary file hashing overhead
+- No-op reindex skips ChromaDB entirely when nothing changed (~250ms vs ~3.6s)
+- `/sleep` runs reindex as Step 2 (early) instead of Step 6 — MCP server may be unavailable late in flow
+
+### Changed
+- LLM synthesis disabled by default — Claude interprets raw chunks directly, no second LLM needed
+- `/welcome` confirms reindex result instead of silently completing
+- `pmem watch` help text notes concurrent use with Claude Code is relatively untested
+
 ## [0.4.0] — 2026-03-25
 
 ### Added

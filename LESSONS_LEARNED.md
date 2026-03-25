@@ -43,3 +43,18 @@ If memory tools are timing out, set `MCP_TIMEOUT` and `MCP_TOOL_TIMEOUT` in `~/.
 
 ### CLAUDE.md must explicitly restrict proactive memory tool use
 Without clear instructions, Claude will proactively call `memory_query` during normal work, adding latency to every interaction. The CLAUDE.md snippet must say "ONLY use memory tools when the user explicitly asks." See `skills/claude-md-snippet.md` for the recommended wording.
+
+### LLM synthesis is redundant when Claude is the consumer
+The original design included local LLM synthesis (via LMStudio/Ollama) to summarize retrieved chunks. In practice, Claude Code is already an LLM — sending chunks to a second LLM for synthesis is unnecessary overhead and adds a dependency (LMStudio on port 1234). LLM synthesis is now disabled by default. It remains available for standalone terminal use (`pmem query`).
+
+### MCP server must not block the async event loop
+All ChromaDB operations, embedding calls, and file I/O are synchronous and will block the MCP server's async event loop if called directly. This causes the MCP protocol connection to stall, which can destabilize the entire Claude Code session. All blocking work must run via `asyncio.to_thread()`.
+
+### ChromaDB init is expensive on large indexes (~700ms for 6000 chunks)
+Opening a ChromaDB PersistentClient on a 25MB database takes ~700ms. The `run_index` function now checks for changes before opening ChromaDB — if nothing is stale, it returns immediately. The MCP `memory_status` tool reads from `index_state.json` instead of opening ChromaDB.
+
+### Claude Code periodically kills and restarts MCP server subprocesses
+Observed during testing: the MCP server process exits cleanly (`SERVER_SHUTDOWN` + `SERVER_EXIT atexit`) after minutes of idle time, then Claude Code restarts it seconds later. If a tool call is in flight when this happens, it gets dropped. The `/sleep` skill now runs reindex as Step 2 (early) instead of Step 6 (late) to avoid this.
+
+### The "Interrupted" cascade in Claude Code
+When Claude Code enters an "Interrupted" state (from any cause — MCP failure, bash error, user interrupt), subsequent tool calls also fail with "Interrupted." The session becomes effectively unrecoverable. This is a Claude Code bug, not specific to pmem, but MCP server instability can trigger it. Updating to the latest Claude Code version helped.
