@@ -4,28 +4,22 @@ These are Claude Code slash command skills that integrate with pmem. They are op
 
 ## Installation
 
-Copy (or symlink) the skills you want into your Claude Code commands directory:
-
 ```bash
-# Copy both skills
-cp skills/welcome.md ~/.claude/commands/welcome.md
-cp skills/sleep.md ~/.claude/commands/sleep.md
-```
+# Recommended: use the built-in installer
+pmem install-skills
 
-Or symlink so they stay in sync with the repo:
-
-```bash
-ln -sf "$(pwd)/skills/welcome.md" ~/.claude/commands/welcome.md
-ln -sf "$(pwd)/skills/sleep.md" ~/.claude/commands/sleep.md
+# Or with symlinks (stays in sync with repo, macOS/Linux only)
+pmem install-skills --link
 ```
 
 ## Usage
 
-- **`/welcome`** — Run at the start of each session. Reads governance files, runs an incremental reindex (fast if nothing changed), and confirms readiness.
-- **`/sleep`** — Run at the end of each session. Full governance pass: updates tasks, docs, changelog, memory, and reindexes before closing out.
+- **`/welcome`** — Run at the start of each session. Reads governance files, refreshes the memory index via MCP, and confirms readiness.
+- **`/sleep`** — Run at the end of each session. Full governance pass: updates tasks, docs, changelog, memory, and reindexes via MCP.
+- **`/reindex`** — Quick trigger to refresh the memory index mid-session.
 
 ## How they work with pmem
 
-Both skills check for `.memory/config.json` in the project root. If it exists, they run `pmem index` — `/welcome` at session start to catch any manual edits, `/sleep` at session end to capture changes made during the session.
+All skills use the `memory_reindex` MCP tool (not the `pmem index` bash command) to avoid database lock conflicts when Claude Code is active.
 
 The incremental index is fast when nothing has changed (~100ms for file hashing). It only embeds files whose content has actually changed.

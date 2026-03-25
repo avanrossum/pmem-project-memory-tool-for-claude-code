@@ -410,3 +410,68 @@ def config_cmd(edit: bool, show_global: bool, init_global: bool) -> None:
         subprocess.run([editor, str(config_path)])
     else:
         click.echo(config_path.read_text())
+
+
+def _find_skills_dir() -> Path | None:
+    """Find the skills directory shipped with pmem."""
+    # Check relative to this file (works for editable installs and normal installs)
+    pkg_dir = Path(__file__).resolve().parent
+    candidates = [
+        pkg_dir.parent.parent / "skills",  # editable install: src/project_memory/../../skills
+        pkg_dir / "skills",                 # bundled install
+    ]
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "welcome.md").exists():
+            return candidate
+    return None
+
+
+SKILL_FILES = ["welcome.md", "sleep.md", "reindex.md"]
+
+
+@cli.command("install-skills")
+@click.option("--link", is_flag=True, help="Symlink instead of copy (not recommended on Windows).")
+def install_skills(link: bool) -> None:
+    """Install Claude Code slash command skills (/welcome, /sleep, /reindex)."""
+    skills_src = _find_skills_dir()
+    if skills_src is None:
+        click.echo(click.style("  ERROR: ", fg="red", bold=True)
+                    + "Could not find skills directory. Is pmem installed correctly?")
+        sys.exit(1)
+
+    commands_dir = Path.home() / ".claude" / "commands"
+    commands_dir.mkdir(parents=True, exist_ok=True)
+
+    click.echo()
+    click.echo(click.style("  pmem install-skills", fg="green", bold=True))
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+
+    for name in SKILL_FILES:
+        src = skills_src / name
+        dest = commands_dir / name
+
+        if not src.exists():
+            continue
+
+        # Remove existing file/symlink before installing
+        if dest.exists() or dest.is_symlink():
+            dest.unlink()
+
+        if link:
+            dest.symlink_to(src)
+            action = "linked"
+        else:
+            import shutil
+            shutil.copy2(src, dest)
+            action = "copied"
+
+        skill_name = name.replace(".md", "")
+        click.echo(
+            click.style(f"  >> /{skill_name}", fg="cyan", bold=True)
+            + click.style(f"  {action} to {dest}", fg="white", dim=True)
+        )
+
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+    click.echo(click.style("  Done ", fg="green", bold=True)
+               + click.style("— restart Claude Code to use the new skills", fg="white", dim=True))
+    click.echo()

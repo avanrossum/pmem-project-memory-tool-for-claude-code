@@ -174,21 +174,34 @@ Add to your `.gitignore`:
 
 ## Skills (optional)
 
-pmem ships with two Claude Code slash command skills for session management:
+pmem ships with three Claude Code slash command skills:
 
 - **`/welcome`** — Run at the start of each session. Reads governance files, runs incremental reindex, confirms readiness.
 - **`/sleep`** — Run at the end of each session. Full governance pass: updates tasks, docs, changelog, memory, and reindexes.
+- **`/reindex`** — Quick trigger to refresh the memory index mid-session.
 
 ### Install skills
 
 ```bash
-# Symlink (stays in sync with repo)
-ln -sf "$(pwd)/skills/welcome.md" ~/.claude/commands/welcome.md
-ln -sf "$(pwd)/skills/sleep.md" ~/.claude/commands/sleep.md
+# Recommended: use the built-in installer
+pmem install-skills
 
-# Or copy
+# Or with symlinks (stays in sync with repo, macOS/Linux only)
+pmem install-skills --link
+```
+
+Or manually:
+
+```bash
+# Copy
 cp skills/welcome.md ~/.claude/commands/welcome.md
 cp skills/sleep.md ~/.claude/commands/sleep.md
+cp skills/reindex.md ~/.claude/commands/reindex.md
+
+# Or symlink (macOS/Linux only)
+ln -sf "$(pwd)/skills/welcome.md" ~/.claude/commands/welcome.md
+ln -sf "$(pwd)/skills/sleep.md" ~/.claude/commands/sleep.md
+ln -sf "$(pwd)/skills/reindex.md" ~/.claude/commands/reindex.md
 ```
 
 ## Recommended CLAUDE.md snippet
