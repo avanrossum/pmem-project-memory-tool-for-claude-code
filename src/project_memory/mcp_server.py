@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from mcp.server import Server
@@ -10,12 +11,100 @@ from mcp.types import TextContent, Tool
 
 server = Server("project-memory")
 
+# Timeout for any blocking operation (seconds)
+TOOL_TIMEOUT = 30
+
 
 def _get_config():
     """Load config from CWD, raising a readable error if not found."""
     from project_memory.config import load_config
 
     return load_config()
+
+
+def _do_query(arguments: dict[str, Any]) -> str:
+    """Run memory_query synchronously (called via to_thread)."""
+    from project_memory.query import query_memory
+
+    config = _get_config()
+    config.query.auto_reindex_on_query = False
+
+    result = query_memory(
+        question=arguments["question"],
+        config=config,
+        synthesize_answer=arguments.get("synthesize", True),
+        top_k=arguments.get("top_k"),
+    )
+    text = result["answer"]
+    if result["sources"]:
+        text += "\n\nSources:\n" + "\n".join(
+            f"- {s['source_file']} ({s['heading_path']})"
+            for s in result["sources"]
+        )
+    return text
+
+
+def _do_search(arguments: dict[str, Any]) -> str:
+    """Run memory_search synchronously (called via to_thread)."""
+    from project_memory.query import retrieve
+
+    config = _get_config()
+    config.query.auto_reindex_on_query = False
+
+    chunks = retrieve(arguments["query"], config)
+    if not chunks:
+        return "No results found."
+    return "\n\n---\n\n".join(
+        f"**{c['source_file']}** ({c['heading_path']}) "
+        f"[score: {c['relevance_score']}]\n\n{c['text']}"
+        for c in chunks
+    )
+
+
+def _do_status() -> str:
+    """Run memory_status synchronously (called via to_thread)."""
+    from project_memory.indexer import get_stale_files, IndexState
+
+    config = _get_config()
+    state_path = config.memory_dir / "index_state.json"
+    state = IndexState.load(state_path)
+    stale = get_stale_files(config)
+    last_indexed = max(
+        (f.get("last_indexed", "") for f in state.files.values()),
+        default="never",
+    )
+    total_chunks = sum(
+        len(f.get("chunk_ids", [])) for f in state.files.values()
+    )
+    text = (
+        f"Project: {config.project_name}\n"
+        f"Indexed files: {len(state.files)}\n"
+        f"Total chunks: {total_chunks}\n"
+        f"Last indexed: {last_indexed}\n"
+        f"Stale files: {len(stale)}\n"
+        f"Embedding model: {config.embedding.model}\n"
+        f"LLM enabled: {config.llm.enabled}"
+    )
+    if stale:
+        text += "\n\nStale files:\n" + "\n".join(f"- {f}" for f in stale)
+    return text
+
+
+def _do_reindex(arguments: dict[str, Any]) -> str:
+    """Run memory_reindex synchronously (called via to_thread)."""
+    from project_memory.indexer import run_index
+
+    config = _get_config()
+    force = arguments.get("force", False)
+    result = run_index(config, force=force)
+    return (
+        f"Reindex complete.\n"
+        f"Files indexed: {result.files_indexed}\n"
+        f"Chunks added: {result.chunks_added}\n"
+        f"Chunks updated: {result.chunks_updated}\n"
+        f"Chunks removed: {result.chunks_removed}\n"
+        f"Duration: {result.duration_seconds:.1f}s"
+    )
 
 
 @server.list_tools()
@@ -93,94 +182,33 @@ async def list_tools() -> list[Tool]:
     ]
 
 
+_HANDLERS = {
+    "memory_query": _do_query,
+    "memory_search": _do_search,
+    "memory_status": lambda args: _do_status(),
+    "memory_reindex": _do_reindex,
+}
+
+
 @server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle an MCP tool call."""
+    """Handle an MCP tool call.
+
+    All blocking work runs in a thread pool so the async event loop stays
+    responsive — prevents the MCP protocol connection from breaking.
+    """
+    handler = _HANDLERS.get(name)
+    if handler is None:
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+
     try:
-        config = _get_config()
-
-        if name == "memory_query":
-            from project_memory.query import query_memory
-
-            # Disable auto_reindex_on_query in MCP context — /welcome and /sleep handle it.
-            # This avoids hashing all files on every query (saves seconds).
-            config.query.auto_reindex_on_query = False
-
-            result = query_memory(
-                question=arguments["question"],
-                config=config,
-                synthesize_answer=arguments.get("synthesize", True),
-                top_k=arguments.get("top_k"),
-            )
-            text = result["answer"]
-            if result["sources"]:
-                text += "\n\nSources:\n" + "\n".join(
-                    f"- {s['source_file']} ({s['heading_path']})"
-                    for s in result["sources"]
-                )
-            return [TextContent(type="text", text=text)]
-
-        elif name == "memory_search":
-            from project_memory.query import retrieve
-
-            config.query.auto_reindex_on_query = False
-
-            chunks = retrieve(arguments["query"], config)
-            if not chunks:
-                return [TextContent(type="text", text="No results found.")]
-            text = "\n\n---\n\n".join(
-                f"**{c['source_file']}** ({c['heading_path']}) "
-                f"[score: {c['relevance_score']}]\n\n{c['text']}"
-                for c in chunks
-            )
-            return [TextContent(type="text", text=text)]
-
-        elif name == "memory_status":
-            from project_memory.indexer import get_stale_files, IndexState
-
-            # Use IndexState directly for most stats — avoid opening ChromaDB
-            # just for a chunk count (saves ~700ms on large projects).
-            state_path = config.memory_dir / "index_state.json"
-            state = IndexState.load(state_path)
-            stale = get_stale_files(config)
-            last_indexed = max(
-                (f.get("last_indexed", "") for f in state.files.values()),
-                default="never",
-            )
-            total_chunks = sum(
-                len(f.get("chunk_ids", [])) for f in state.files.values()
-            )
-            text = (
-                f"Project: {config.project_name}\n"
-                f"Indexed files: {len(state.files)}\n"
-                f"Total chunks: {total_chunks}\n"
-                f"Last indexed: {last_indexed}\n"
-                f"Stale files: {len(stale)}\n"
-                f"Embedding model: {config.embedding.model}\n"
-                f"LLM enabled: {config.llm.enabled}"
-            )
-            if stale:
-                text += "\n\nStale files:\n" + "\n".join(f"- {f}" for f in stale)
-            return [TextContent(type="text", text=text)]
-
-        elif name == "memory_reindex":
-            from project_memory.indexer import run_index
-
-            force = arguments.get("force", False)
-            result = run_index(config, force=force)
-            text = (
-                f"Reindex complete.\n"
-                f"Files indexed: {result.files_indexed}\n"
-                f"Chunks added: {result.chunks_added}\n"
-                f"Chunks updated: {result.chunks_updated}\n"
-                f"Chunks removed: {result.chunks_removed}\n"
-                f"Duration: {result.duration_seconds:.1f}s"
-            )
-            return [TextContent(type="text", text=text)]
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
+        text = await asyncio.wait_for(
+            asyncio.to_thread(handler, arguments),
+            timeout=TOOL_TIMEOUT,
+        )
+        return [TextContent(type="text", text=text)]
+    except asyncio.TimeoutError:
+        return [TextContent(type="text", text=f"Error: {name} timed out after {TOOL_TIMEOUT}s")]
     except FileNotFoundError as e:
         return [TextContent(type="text", text=f"Error: {e}")]
     except Exception as e:
