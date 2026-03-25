@@ -39,6 +39,7 @@ ollama pull nomic-embed-text
 git clone https://github.com/yourusername/project-memory-tool.git
 cd project-memory-tool
 pip install -e .
+pmem install-skills
 ```
 
 ### 3. Register the MCP server
@@ -81,7 +82,11 @@ pmem include "**/*.py"          Add a pattern to the include list
 pmem serve                      Start the MCP server (used by Claude Code)
 pmem config                     Print current config
 pmem config --edit              Open config in $EDITOR
+pmem config --global            Show global config
+pmem config --init-global       Create global config at ~/.config/pmem/config.json
 pmem watch                      Watch for file changes and reindex automatically
+pmem install-skills             Install /welcome, /sleep, /reindex to Claude Code
+pmem install-skills --link      Symlink instead of copy (macOS/Linux)
 ```
 
 > **Note:** Don't run `pmem index` from the terminal while Claude Code is active with the MCP server — it can cause database lock conflicts. Use the `memory_reindex` MCP tool from within Claude Code instead, or close Claude Code first.
