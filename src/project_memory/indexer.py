@@ -292,9 +292,6 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
     state_path = config.memory_dir / "index_state.json"
     state = IndexState.load(state_path)
 
-    _log("Opening vector store", "step")
-    store = ChunkStore(config)
-
     _log("Scanning files", "step")
     files = scan_files(config)
     current_files = {str(f.relative_to(config.project_root)): f for f in files}
@@ -319,6 +316,15 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
         )
         result.duration_seconds = time.time() - start_time
         return result
+
+    # Nothing to do — skip opening ChromaDB entirely
+    if not files_to_index and not deleted_files:
+        result.duration_seconds = time.time() - start_time
+        return result
+
+    # Only open ChromaDB when there's actual work to do
+    _log("Opening vector store", "step")
+    store = ChunkStore(config)
 
     # Remove chunks for deleted files
     for rel_str in deleted_files:
