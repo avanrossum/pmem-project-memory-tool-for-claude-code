@@ -62,19 +62,47 @@ def index(force: bool, dry_run: bool) -> None:
     from project_memory.indexer import run_index
 
     if dry_run:
-        click.echo("Dry run — no changes will be made.")
+        click.echo(click.style("  DRY RUN", fg="yellow", bold=True) + " — no changes will be made.")
+
+    def _log(msg: str, level: str = "info") -> None:
+        if level == "step":
+            click.echo(click.style(f"  >> {msg}", fg="cyan", bold=True))
+        elif level == "file":
+            click.echo(click.style(f"     {msg}", fg="white", dim=True))
+        elif level == "count":
+            click.echo(click.style(f"     {msg}", fg="yellow"))
+        elif level == "progress":
+            click.echo(click.style(f"     {msg}", fg="magenta"))
+        else:
+            click.echo(click.style(f"     {msg}", fg="white"))
+
+    click.echo()
+    click.echo(click.style("  pmem index", fg="green", bold=True) + click.style(f"  {config.project_name}", fg="white", dim=True))
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
 
     try:
-        result = run_index(config, force=force, dry_run=dry_run)
+        result = run_index(config, force=force, dry_run=dry_run, log=_log)
     except Exception as e:
-        click.echo(f"Error during indexing: {e}", err=True)
+        click.echo()
+        click.echo(click.style(f"  ERROR: {e}", fg="red", bold=True))
         sys.exit(1)
 
-    click.echo(f"Files indexed: {result.files_indexed}")
-    click.echo(f"Chunks added: {result.chunks_added}")
-    click.echo(f"Chunks updated: {result.chunks_updated}")
-    click.echo(f"Chunks removed: {result.chunks_removed}")
-    click.echo(f"Duration: {result.duration_seconds:.1f}s")
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+    click.echo(
+        click.style("  Done ", fg="green", bold=True)
+        + click.style(f"in {result.duration_seconds:.1f}s", fg="white", dim=True)
+    )
+    click.echo(
+        click.style(f"     {result.files_indexed}", fg="cyan", bold=True)
+        + click.style(" files  ", fg="white")
+        + click.style(f"{result.chunks_added}", fg="cyan", bold=True)
+        + click.style(" added  ", fg="white")
+        + click.style(f"{result.chunks_updated}", fg="yellow", bold=True)
+        + click.style(" updated  ", fg="white")
+        + click.style(f"{result.chunks_removed}", fg="red", bold=True)
+        + click.style(" removed", fg="white")
+    )
+    click.echo()
 
 
 @cli.command()
@@ -153,6 +181,69 @@ def serve() -> None:
     from project_memory.mcp_server import run_server
 
     asyncio.run(run_server())
+
+
+@cli.command()
+@click.argument("pattern")
+def exclude(pattern: str) -> None:
+    """Add a glob pattern to the exclude list.
+
+    Examples:
+        pmem exclude "snapshots/**"
+        pmem exclude "*.csv"
+        pmem exclude "archive/old-reports/**"
+    """
+    try:
+        cfg = load_config()
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    config_path = cfg.memory_dir / "config.json"
+    data = json.loads(config_path.read_text())
+    excludes = data.get("indexing", {}).get("exclude", [])
+
+    if pattern in excludes:
+        click.echo(click.style(f"  Already excluded: ", fg="yellow") + pattern)
+        return
+
+    excludes.append(pattern)
+    data.setdefault("indexing", {})["exclude"] = excludes
+    config_path.write_text(json.dumps(data, indent=2) + "\n")
+
+    click.echo(click.style("  Added: ", fg="green", bold=True) + pattern)
+    click.echo(click.style("  Excludes: ", fg="white", dim=True) + ", ".join(excludes))
+
+
+@cli.command()
+@click.argument("pattern")
+def include(pattern: str) -> None:
+    """Add a glob pattern to the include list.
+
+    Examples:
+        pmem include "**/*.py"
+        pmem include "docs/**/*.rst"
+    """
+    try:
+        cfg = load_config()
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    config_path = cfg.memory_dir / "config.json"
+    data = json.loads(config_path.read_text())
+    includes = data.get("indexing", {}).get("include", [])
+
+    if pattern in includes:
+        click.echo(click.style(f"  Already included: ", fg="yellow") + pattern)
+        return
+
+    includes.append(pattern)
+    data.setdefault("indexing", {})["include"] = includes
+    config_path.write_text(json.dumps(data, indent=2) + "\n")
+
+    click.echo(click.style("  Added: ", fg="green", bold=True) + pattern)
+    click.echo(click.style("  Includes: ", fg="white", dim=True) + ", ".join(includes))
 
 
 @cli.command()

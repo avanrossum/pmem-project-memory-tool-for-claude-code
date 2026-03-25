@@ -78,6 +78,9 @@ def chunk_markdown(text: str, source_file: str, file_hash: str, config: ProjectC
     chunk_size = config.indexing.chunk_size
     chunk_overlap = config.indexing.chunk_overlap
     split_on_headers = config.indexing.split_on_headers
+    # nomic-embed-text has ~8192 token context, but tokens ≈ chars/4.
+    # Use a conservative char limit to stay safely within model context.
+    max_chars = chunk_size * 5
 
     if split_on_headers:
         sections = _split_by_headers(text)
@@ -90,7 +93,7 @@ def chunk_markdown(text: str, source_file: str, file_hash: str, config: ProjectC
         if not section_text:
             continue
 
-        if len(section_text) <= chunk_size:
+        if len(section_text.split()) <= chunk_size and len(section_text) <= max_chars:
             chunk_id = _make_chunk_id(source_file, len(chunks))
             chunks.append(Chunk(
                 chunk_id=chunk_id,
@@ -157,15 +160,22 @@ def _split_by_headers(text: str) -> list[tuple[str, str]]:
 
 
 def _split_by_size(text: str, chunk_size: int, overlap: int) -> list[str]:
-    """Split text into chunks of approximately chunk_size with overlap."""
+    """Split text into chunks of approximately chunk_size words, capped at max_chars."""
+    max_chars = chunk_size * 5
     words = text.split()
     chunks: list[str] = []
     start = 0
     while start < len(words):
-        end = start + chunk_size
-        chunk_words = words[start:end]
-        chunks.append(" ".join(chunk_words))
-        start = end - overlap
+        end = min(start + chunk_size, len(words))
+        chunk_text = " ".join(words[start:end])
+        # If still too long by character count, trim further
+        while len(chunk_text) > max_chars and end > start + 1:
+            end -= 1
+            chunk_text = " ".join(words[start:end])
+        chunks.append(chunk_text)
+        # Ensure forward progress: advance by at least 1 word
+        next_start = end - overlap
+        start = max(next_start, start + 1)
     return chunks
 
 
@@ -175,29 +185,45 @@ def _make_chunk_id(source_file: str, chunk_index: int) -> str:
     return hashlib.md5(raw.encode()).hexdigest()
 
 
-def embed_texts(texts: list[str], config: ProjectConfig) -> list[list[float]]:
+def embed_texts(texts: list[str], config: ProjectConfig, progress_callback: Any | None = None) -> list[list[float]]:
     """Embed a list of texts using the configured embedding provider."""
     if config.embedding.provider == "ollama":
-        return _embed_ollama(texts, config)
+        return _embed_ollama(texts, config, progress_callback=progress_callback)
     elif config.embedding.provider == "openai_compatible":
         return _embed_openai_compatible(texts, config)
     else:
         raise ValueError(f"Unknown embedding provider: {config.embedding.provider}")
 
 
-def _embed_ollama(texts: list[str], config: ProjectConfig) -> list[list[float]]:
-    """Embed texts using the Ollama API."""
-    embeddings: list[list[float]] = []
-    with httpx.Client(timeout=120.0) as client:
-        for text in texts:
+def _embed_ollama(
+    texts: list[str],
+    config: ProjectConfig,
+    batch_size: int = 25,
+    progress_callback: Any | None = None,
+) -> list[list[float]]:
+    """Embed texts using the Ollama /api/embed endpoint in batches."""
+    total = len(texts)
+    all_embeddings: list[list[float]] = []
+
+    with httpx.Client(timeout=300.0) as client:
+        for i in range(0, total, batch_size):
+            batch = texts[i : i + batch_size]
+            done = min(i + len(batch), total)
+
+            if progress_callback:
+                progress_callback(done, total)
+
             resp = client.post(
-                f"{config.embedding.endpoint}/api/embeddings",
-                json={"model": config.embedding.model, "prompt": text},
+                f"{config.embedding.endpoint}/api/embed",
+                json={"model": config.embedding.model, "input": batch},
             )
-            resp.raise_for_status()
-            data = resp.json()
-            embeddings.append(data["embedding"])
-    return embeddings
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Ollama returned {resp.status_code}: {resp.text[:300]}"
+                )
+            all_embeddings.extend(resp.json()["embeddings"])
+
+    return all_embeddings
 
 
 def _embed_openai_compatible(texts: list[str], config: ProjectConfig) -> list[list[float]]:
@@ -223,32 +249,43 @@ class IndexResult:
     duration_seconds: float = 0.0
 
 
-def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False) -> IndexResult:
+def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False, log: Any | None = None) -> IndexResult:
     """Run an incremental (or full) index of the project.
+
+    Args:
+        log: Optional callable(message: str) for progress output.
 
     Returns an IndexResult with stats about what was done.
     """
     from project_memory.store import ChunkStore
 
+    def _log(msg: str, level: str = "info") -> None:
+        if log:
+            log(msg, level)
+
     start_time = time.time()
     state_path = config.memory_dir / "index_state.json"
     state = IndexState.load(state_path)
+
+    _log("Opening vector store", "step")
     store = ChunkStore(config)
 
+    _log("Scanning files", "step")
     files = scan_files(config)
     current_files = {str(f.relative_to(config.project_root)): f for f in files}
+    _log(f"Found {len(current_files)} files matching include patterns", "info")
 
     result = IndexResult()
 
-    # Find files to process
+    _log("Checking for changes", "step")
     files_to_index: list[tuple[str, Path]] = []
     for rel_str, abs_path in current_files.items():
         fhash = hash_file(abs_path)
         if force or rel_str not in state.files or state.files[rel_str].get("hash") != fhash:
             files_to_index.append((rel_str, abs_path))
 
-    # Find deleted files
     deleted_files = set(state.files.keys()) - set(current_files.keys())
+    _log(f"{len(files_to_index)} to index, {len(deleted_files)} deleted", "count")
 
     if dry_run:
         result.files_indexed = len(files_to_index)
@@ -266,35 +303,57 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False)
             result.chunks_removed += len(chunk_ids)
         del state.files[rel_str]
 
-    # Index changed files
-    for rel_str, abs_path in files_to_index:
+    # Batch-delete all old chunks for files we're about to re-index
+    all_old_ids: list[str] = []
+    for rel_str, _ in files_to_index:
+        old_ids = state.files.get(rel_str, {}).get("chunk_ids", [])
+        all_old_ids.extend(old_ids)
+    if all_old_ids:
+        _log(f"Removing {len(all_old_ids)} stale chunks", "step")
+        store.delete_chunks(all_old_ids)
+        result.chunks_updated = len(all_old_ids)
+
+    _log("Chunking files", "step")
+    all_chunks: list[Chunk] = []
+    file_chunk_ranges: list[tuple[str, str, int, int]] = []  # (rel_str, fhash, start, end)
+
+    for fi, (rel_str, abs_path) in enumerate(files_to_index, 1):
+        _log(f"[{fi}/{len(files_to_index)}] {rel_str}", "file")
         fhash = hash_file(abs_path)
         text = abs_path.read_text(errors="replace")
         chunks = chunk_markdown(text, rel_str, fhash, config)
-
         if not chunks:
             continue
+        start_idx = len(all_chunks)
+        all_chunks.extend(chunks)
+        file_chunk_ranges.append((rel_str, fhash, start_idx, len(all_chunks)))
 
-        # Remove old chunks for this file
-        old_chunk_ids = state.files.get(rel_str, {}).get("chunk_ids", [])
-        if old_chunk_ids:
-            store.delete_chunks(old_chunk_ids)
-            result.chunks_updated += len(old_chunk_ids)
+    _log(f"{len(all_chunks)} chunks from {len(file_chunk_ranges)} files", "count")
 
-        # Embed and store new chunks
-        texts = [c.text for c in chunks]
-        embeddings = embed_texts(texts, config)
-        store.upsert_chunks(chunks, embeddings)
+    # Embed all chunks in batched calls
+    if all_chunks:
+        _log("Embedding", "step")
 
-        result.chunks_added += len(chunks)
-        result.files_indexed += 1
+        def _embed_progress(done: int, total: int) -> None:
+            _log(f"{done}/{total} chunks embedded", "progress")
 
-        # Update state
-        state.files[rel_str] = {
-            "hash": fhash,
-            "last_indexed": datetime.now(timezone.utc).isoformat(),
-            "chunk_ids": [c.chunk_id for c in chunks],
-        }
+        all_texts = [c.text for c in all_chunks]
+        all_embeddings = embed_texts(all_texts, config, progress_callback=_embed_progress)
+
+        _log("Storing vectors", "step")
+        for rel_str, fhash, start, end in file_chunk_ranges:
+            file_chunks = all_chunks[start:end]
+            file_embeddings = all_embeddings[start:end]
+            store.upsert_chunks(file_chunks, file_embeddings)
+
+            result.chunks_added += len(file_chunks)
+            result.files_indexed += 1
+
+            state.files[rel_str] = {
+                "hash": fhash,
+                "last_indexed": datetime.now(timezone.utc).isoformat(),
+                "chunk_ids": [c.chunk_id for c in file_chunks],
+            }
 
     state.save(state_path)
     result.duration_seconds = time.time() - start_time

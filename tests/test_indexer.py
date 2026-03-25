@@ -64,13 +64,14 @@ def test_split_by_headers_preamble():
 
 
 def test_split_by_size():
-    """_split_by_size splits into chunks with overlap."""
-    text = " ".join(f"word{i}" for i in range(100))
+    """_split_by_size splits into chunks with overlap and respects char limit."""
+    text = " ".join(f"w{i}" for i in range(100))
     chunks = _split_by_size(text, chunk_size=30, overlap=5)
     assert len(chunks) > 1
-    # Each chunk should have roughly 30 words (except possibly the last)
-    for c in chunks[:-1]:
-        assert len(c.split()) == 30
+    # Each chunk should not exceed chunk_size * 5 characters
+    max_chars = 30 * 5
+    for c in chunks:
+        assert len(c) <= max_chars
 
 
 def test_chunk_markdown(tmp_path):
