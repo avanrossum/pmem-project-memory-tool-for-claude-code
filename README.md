@@ -81,7 +81,10 @@ pmem include "**/*.py"          Add a pattern to the include list
 pmem serve                      Start the MCP server (used by Claude Code)
 pmem config                     Print current config
 pmem config --edit              Open config in $EDITOR
+pmem watch                      Watch for file changes and reindex automatically
 ```
+
+> **Note:** Don't run `pmem index` from the terminal while Claude Code is active with the MCP server — it can cause database lock conflicts. Use the `memory_reindex` MCP tool from within Claude Code instead, or close Claude Code first.
 
 ## MCP tools
 

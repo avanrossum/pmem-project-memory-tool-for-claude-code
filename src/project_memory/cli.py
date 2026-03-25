@@ -133,7 +133,12 @@ def init() -> None:
 @click.option("--force", is_flag=True, help="Re-embed all files regardless of change state.")
 @click.option("--dry-run", is_flag=True, help="Show what would be indexed without doing it.")
 def index(force: bool, dry_run: bool) -> None:
-    """Run incremental index of project files."""
+    """Run incremental index of project files.
+
+    Note: If Claude Code is running with the project-memory MCP server active,
+    use the memory_reindex MCP tool instead. Running pmem index from the terminal
+    while Claude Code is active can cause database lock conflicts.
+    """
     try:
         config = load_config()
     except FileNotFoundError as e:
