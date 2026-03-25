@@ -25,15 +25,9 @@ If this project has a `.memory/config.json` (i.e. the project memory tool is set
 
 **Use the `memory_reindex` MCP tool** to refresh the index. Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
 
+After the reindex completes, briefly confirm it to the user — e.g. "Memory index refreshed (0 files changed)" or "Memory index updated (3 files re-embedded)." Don't dump the raw tool output, just a one-line summary.
+
 If the `memory_reindex` MCP tool is not available (e.g. MCP server not registered), skip this step silently.
-
----
-
-## Step 3 — Check Memory Status
-
-If the memory index exists, use the `memory_status` MCP tool to check freshness.
-
-Briefly note the state (indexed files, stale files) but do not print the full output to the user unless something looks wrong (e.g. many stale files after indexing, or zero indexed files).
 
 If the MCP tool is not available, skip silently.
 
