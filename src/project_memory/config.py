@@ -32,7 +32,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "query": {
         "top_k": 8,
-        "auto_reindex_on_query": True,
+        "auto_reindex_on_query": False,
     },
 }
 
@@ -74,7 +74,7 @@ class QueryConfig:
     """Query configuration."""
 
     top_k: int = 8
-    auto_reindex_on_query: bool = True
+    auto_reindex_on_query: bool = False
 
 
 @dataclass
