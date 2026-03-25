@@ -10,13 +10,75 @@ from pathlib import Path
 
 import click
 
-from project_memory.config import create_default_config, load_config, find_memory_root
+from project_memory.config import (
+    create_default_config,
+    create_global_config,
+    load_config,
+    load_global_config,
+    find_memory_root,
+    GLOBAL_CONFIG_PATH,
+)
 
 
 @click.group()
 def cli() -> None:
     """pmem — Project Memory Tool for Claude Code."""
     pass
+
+
+CLAUDE_MD_SNIPPET = """
+
+## Project Memory
+
+This project has a local RAG memory index via `pmem`. Use the `memory_query` MCP tool when:
+- Looking for past decisions, context, or rationale ("why did we do X?")
+- Searching for historical task context or outcomes
+- Finding documented gotchas or lessons learned
+
+Do NOT use memory_query for: reading specific known files, checking current code state, or anything derivable from `git log`. The index updates at session start (`/welcome`) and session end (`/sleep`).
+
+If results seem stale, run `memory_reindex` to refresh.
+"""
+
+GITIGNORE_ENTRIES = [".memory/chroma/", ".memory/index_state.json"]
+GITIGNORE_COMMENT = "# Project memory (generated)"
+
+
+def _update_gitignore(project_root: Path) -> str | None:
+    """Ensure .gitignore contains project memory entries.
+
+    Returns a description of what was done, or None if nothing changed.
+    """
+    gitignore_path = project_root / ".gitignore"
+    if gitignore_path.exists():
+        content = gitignore_path.read_text()
+        missing = [e for e in GITIGNORE_ENTRIES if e not in content]
+        if not missing:
+            return None
+        lines = f"\n{GITIGNORE_COMMENT}\n" + "\n".join(missing) + "\n"
+        with open(gitignore_path, "a") as f:
+            f.write(lines)
+        return f"Appended {', '.join(missing)} to .gitignore"
+    else:
+        lines = f"{GITIGNORE_COMMENT}\n" + "\n".join(GITIGNORE_ENTRIES) + "\n"
+        gitignore_path.write_text(lines)
+        return "Created .gitignore with memory entries"
+
+
+def _update_claude_md(project_root: Path) -> str | None:
+    """Append project memory snippet to CLAUDE.md if it exists and doesn't already have it.
+
+    Returns a description of what was done, or None if nothing changed.
+    """
+    claude_md_path = project_root / "CLAUDE.md"
+    if not claude_md_path.exists():
+        return None
+    content = claude_md_path.read_text()
+    if "Project Memory" in content or "memory_query" in content:
+        return None
+    with open(claude_md_path, "a") as f:
+        f.write(CLAUDE_MD_SNIPPET)
+    return "Appended Project Memory section to CLAUDE.md"
 
 
 @cli.command()
@@ -26,26 +88,45 @@ def init() -> None:
     config_path = project_root / ".memory" / "config.json"
 
     if config_path.exists():
-        click.echo(f"Memory already initialized at {config_path}")
-        click.echo("Edit .memory/config.json to update configuration.")
+        click.echo(click.style("  Already initialized ", fg="yellow", bold=True)
+                    + click.style(str(config_path), fg="white", dim=True))
+        click.echo(click.style("  Edit .memory/config.json to update configuration.", fg="white", dim=True))
         return
 
+    click.echo()
+    click.echo(click.style("  pmem init", fg="green", bold=True))
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+
+    # Step 1: Create config
     config_path = create_default_config(project_root)
-    click.echo(f"Created {config_path}")
+    click.echo(click.style("  >> Created config", fg="cyan", bold=True)
+               + click.style(f"  {config_path}", fg="white", dim=True))
+
+    # Step 2: Update .gitignore
+    gitignore_result = _update_gitignore(project_root)
+    if gitignore_result:
+        click.echo(click.style("  >> .gitignore  ", fg="cyan", bold=True)
+                    + click.style(gitignore_result, fg="white", dim=True))
+
+    # Step 3: Update CLAUDE.md
+    claude_md_result = _update_claude_md(project_root)
+    if claude_md_result:
+        click.echo(click.style("  >> CLAUDE.md  ", fg="cyan", bold=True)
+                    + click.style(claude_md_result, fg="white", dim=True))
+
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+    click.echo(click.style("  Done ", fg="green", bold=True))
     click.echo()
-    click.echo("Next steps:")
-    click.echo("  1. Edit .memory/config.json to set your embedding/LLM endpoints")
-    click.echo("  2. Add to .gitignore:")
-    click.echo("       .memory/chroma/")
-    click.echo("       .memory/index_state.json")
-    click.echo("  3. Add to ~/.claude/settings.json under mcpServers:")
+    click.echo(click.style("  Next steps:", fg="cyan", bold=True))
+    click.echo(click.style("  1. ", fg="white") + "Edit .memory/config.json to set your embedding/LLM endpoints")
+    click.echo(click.style("  2. ", fg="white") + "Add to ~/.claude/settings.json under mcpServers:")
     click.echo()
-    click.echo('     "project-memory": {')
-    click.echo('       "command": "pmem",')
-    click.echo('       "args": ["serve"]')
-    click.echo("     }")
+    click.echo(click.style('     "project-memory": {', fg="white", dim=True))
+    click.echo(click.style('       "command": "pmem",', fg="white", dim=True))
+    click.echo(click.style('       "args": ["serve"]', fg="white", dim=True))
+    click.echo(click.style("     }", fg="white", dim=True))
     click.echo()
-    click.echo("  4. Run: pmem index")
+    click.echo(click.style("  3. ", fg="white") + "Run: " + click.style("pmem index", fg="cyan", bold=True))
 
 
 @cli.command()
@@ -247,9 +328,66 @@ def include(pattern: str) -> None:
 
 
 @cli.command()
+def watch() -> None:
+    """Watch for file changes and reindex automatically."""
+    try:
+        cfg = load_config()
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    from project_memory.watcher import run_watcher
+
+    def _log(msg: str, level: str = "info") -> None:
+        if level == "step":
+            click.echo(click.style(f"  >> {msg}", fg="cyan", bold=True))
+        elif level == "file":
+            click.echo(click.style(f"     {msg}", fg="white", dim=True))
+        elif level == "count":
+            click.echo(click.style(f"     {msg}", fg="yellow"))
+        elif level == "progress":
+            click.echo(click.style(f"     {msg}", fg="magenta"))
+        else:
+            click.echo(click.style(f"     {msg}", fg="white"))
+
+    click.echo()
+    click.echo(
+        click.style("  pmem watch", fg="green", bold=True)
+        + click.style(f"  {cfg.project_name}", fg="white", dim=True)
+    )
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+
+    run_watcher(cfg, log=_log)
+
+    click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
+    click.echo()
+
+
+@cli.command("config")
 @click.option("--edit", is_flag=True, help="Open config.json in $EDITOR.")
-def config(edit: bool) -> None:
+@click.option("--global", "show_global", is_flag=True, help="Show global config path and contents.")
+@click.option("--init-global", is_flag=True, help="Create a minimal global config at ~/.config/pmem/config.json.")
+def config_cmd(edit: bool, show_global: bool, init_global: bool) -> None:
     """Show or edit the current project configuration."""
+    if init_global:
+        if GLOBAL_CONFIG_PATH.is_file():
+            click.echo(f"Global config already exists at {GLOBAL_CONFIG_PATH}")
+            click.echo(GLOBAL_CONFIG_PATH.read_text())
+        else:
+            path = create_global_config()
+            click.echo(f"Created global config at {path}")
+            click.echo(path.read_text())
+        return
+
+    if show_global:
+        click.echo(f"Global config path: {GLOBAL_CONFIG_PATH}")
+        click.echo()
+        if GLOBAL_CONFIG_PATH.is_file():
+            click.echo(GLOBAL_CONFIG_PATH.read_text())
+        else:
+            click.echo("Global config does not exist yet. Run 'pmem config --init-global' to create it.")
+        return
+
     try:
         cfg = load_config()
     except FileNotFoundError as e:

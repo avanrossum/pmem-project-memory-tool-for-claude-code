@@ -55,19 +55,34 @@ def synthesize(question: str, chunks: list[dict[str, Any]], config: ProjectConfi
         },
     ]
 
-    with httpx.Client(timeout=120.0) as client:
-        resp = client.post(
-            f"{config.llm.endpoint}/chat/completions",
-            json={
-                "model": config.llm.model,
-                "messages": messages,
-                "temperature": 0.3,
-                "max_tokens": 1024,
-            },
+    endpoint = config.llm.endpoint
+    model = config.llm.model
+    try:
+        with httpx.Client(timeout=120.0) as client:
+            resp = client.post(
+                f"{endpoint}/chat/completions",
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "temperature": 0.3,
+                    "max_tokens": 1024,
+                },
+            )
+            if resp.status_code == 404:
+                raise RuntimeError(
+                    f"Model '{model}' not found. Pull it with: ollama pull {model}"
+                )
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"LLM endpoint returned {resp.status_code}: {resp.text[:300]}"
+                )
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to LLM at {endpoint}. Is your LLM server running? "
+            f"Start Ollama with: ollama serve"
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
 
 
 def query_memory(

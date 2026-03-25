@@ -202,40 +202,65 @@ def _embed_ollama(
     progress_callback: Any | None = None,
 ) -> list[list[float]]:
     """Embed texts using the Ollama /api/embed endpoint in batches."""
+    endpoint = config.embedding.endpoint
+    model = config.embedding.model
     total = len(texts)
     all_embeddings: list[list[float]] = []
 
-    with httpx.Client(timeout=300.0) as client:
-        for i in range(0, total, batch_size):
-            batch = texts[i : i + batch_size]
-            done = min(i + len(batch), total)
+    try:
+        with httpx.Client(timeout=300.0) as client:
+            for i in range(0, total, batch_size):
+                batch = texts[i : i + batch_size]
+                done = min(i + len(batch), total)
 
-            if progress_callback:
-                progress_callback(done, total)
+                if progress_callback:
+                    progress_callback(done, total)
 
-            resp = client.post(
-                f"{config.embedding.endpoint}/api/embed",
-                json={"model": config.embedding.model, "input": batch},
-            )
-            if resp.status_code != 200:
-                raise RuntimeError(
-                    f"Ollama returned {resp.status_code}: {resp.text[:300]}"
+                resp = client.post(
+                    f"{endpoint}/api/embed",
+                    json={"model": model, "input": batch},
                 )
-            all_embeddings.extend(resp.json()["embeddings"])
+                if resp.status_code == 404:
+                    raise RuntimeError(
+                        f"Model '{model}' not found. Pull it with: ollama pull {model}"
+                    )
+                if resp.status_code != 200:
+                    raise RuntimeError(
+                        f"Ollama returned {resp.status_code}: {resp.text[:300]}"
+                    )
+                all_embeddings.extend(resp.json()["embeddings"])
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to Ollama at {endpoint}. Is Ollama running? Start it with: ollama serve"
+        )
 
     return all_embeddings
 
 
 def _embed_openai_compatible(texts: list[str], config: ProjectConfig) -> list[list[float]]:
     """Embed texts using an OpenAI-compatible API."""
-    with httpx.Client(timeout=120.0) as client:
-        resp = client.post(
-            f"{config.embedding.endpoint}/v1/embeddings",
-            json={"model": config.embedding.model, "input": texts},
+    endpoint = config.embedding.endpoint
+    model = config.embedding.model
+    try:
+        with httpx.Client(timeout=120.0) as client:
+            resp = client.post(
+                f"{endpoint}/v1/embeddings",
+                json={"model": model, "input": texts},
+            )
+            if resp.status_code == 404:
+                raise RuntimeError(
+                    f"Model '{model}' not found. Pull it with: ollama pull {model}"
+                )
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"Embedding API returned {resp.status_code}: {resp.text[:300]}"
+                )
+            data = resp.json()
+            return [item["embedding"] for item in data["data"]]
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to embedding endpoint at {endpoint}. Is the server running?"
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return [item["embedding"] for item in data["data"]]
 
 
 @dataclass

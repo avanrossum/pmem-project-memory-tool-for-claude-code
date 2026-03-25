@@ -4,6 +4,29 @@
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-03-25
+
+### Added
+- `pmem watch` — background file watcher with 2-second debounce, auto-reindexes on file changes
+- `pmem exclude` / `pmem include` — CLI commands for easy per-project pattern management
+- `pmem config --global` / `--init-global` — global default config at `~/.config/pmem/config.json`
+- Global config deep-merges with project config (global base, project overrides)
+- `pmem init` now auto-appends to `.gitignore` and appends Project Memory snippet to `CLAUDE.md`
+- Actionable error messages: "Ollama not running", "model not found", connection failures
+- `/welcome` skill — session start: reads governance files, incremental reindex
+- `/sleep` skill — session end: governance pass + reindex (included in repo)
+- Multi-collection architecture design doc (`docs/multi-collection-design.md`)
+
+### Fixed
+- Infinite loop in `_split_by_size` when char limit forced overlap past start position
+- Chunk size now enforced by both word count AND character limit (prevents embedding context overflow)
+- Batch embed via Ollama `/api/embed` instead of one-at-a-time `/api/embeddings`
+- Batch chunk deletion before re-indexing (single ChromaDB call instead of per-file)
+
+### Changed
+- Structured progress logging with colored output for all CLI commands
+- `run_index` accepts `log` callback for stage-by-stage progress reporting
+
 ## [0.2.0] — 2026-03-25
 
 ### Added

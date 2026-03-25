@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+GLOBAL_CONFIG_DIR = Path.home() / ".config" / "pmem"
+GLOBAL_CONFIG_PATH = GLOBAL_CONFIG_DIR / "config.json"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "project_name": "",
@@ -115,8 +117,53 @@ def find_memory_root(start: Path | None = None) -> Path | None:
         current = parent
 
 
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge two dicts. Values in override take precedence.
+
+    For nested dicts, merging is recursive. For all other types (including lists),
+    the override value replaces the base value entirely.
+    """
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_global_config() -> dict[str, Any]:
+    """Load the global config from ~/.config/pmem/config.json.
+
+    Returns an empty dict if the file does not exist or is invalid.
+    """
+    if not GLOBAL_CONFIG_PATH.is_file():
+        return {}
+    try:
+        return json.loads(GLOBAL_CONFIG_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def create_global_config() -> Path:
+    """Create a minimal global config with embedding and LLM sections.
+
+    Returns the path to the created config file.
+    """
+    GLOBAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    config: dict[str, Any] = {
+        "embedding": dict(DEFAULT_CONFIG["embedding"]),
+        "llm": dict(DEFAULT_CONFIG["llm"]),
+    }
+    GLOBAL_CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n")
+    return GLOBAL_CONFIG_PATH
+
+
 def load_config(start: Path | None = None) -> ProjectConfig:
     """Load project config by walking up from start to find .memory/config.json.
+
+    If a global config exists at ~/.config/pmem/config.json, it is loaded first
+    as a base, then the project config is deep-merged on top (project wins).
 
     Raises FileNotFoundError if no .memory/config.json is found.
     """
@@ -126,7 +173,14 @@ def load_config(start: Path | None = None) -> ProjectConfig:
             "No .memory/config.json found. Run 'pmem init' in your project root."
         )
     config_path = project_root / ".memory" / "config.json"
-    data = json.loads(config_path.read_text())
+    project_data = json.loads(config_path.read_text())
+
+    global_data = load_global_config()
+    if global_data:
+        data = deep_merge(global_data, project_data)
+    else:
+        data = project_data
+
     return ProjectConfig.from_dict(data, project_root)
 
 

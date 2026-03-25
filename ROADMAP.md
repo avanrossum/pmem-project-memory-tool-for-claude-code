@@ -31,15 +31,15 @@ Everything needed for a usable, working tool. End state: Alex can run `pmem init
 
 ## Phase 2 — Robustness & Polish
 
-- [ ] `pmem watch` — background file watcher; re-indexes on change
-- [ ] Global default config at `~/.config/pmem/config.json` — override per-project
+- [x] `pmem watch` — background file watcher; re-indexes on change (watchdog, 2s debounce)
+- [x] Global default config at `~/.config/pmem/config.json` — deep-merged with project config
 - [ ] `pmem init --interactive` — guided setup (asks for endpoints, writes config)
-- [ ] `pmem init` auto-appends `.memory/chroma/` and `index_state.json` to `.gitignore`
-- [ ] `pmem init` optionally appends `CLAUDE.md` snippet
-- [ ] LanceDB as an alternative vector store option (evaluate vs ChromaDB)
-- [ ] Better error messages — detect "Ollama not running", "model not found", etc. and give actionable advice
-- [ ] `/sleep` skill update — add `pmem index` step conditionally (only if `.memory/config.json` exists)
-- [ ] Multi-collection support — index different subsets separately (e.g. "tasks only", "architecture only")
+- [x] `pmem init` auto-appends `.memory/chroma/` and `index_state.json` to `.gitignore`
+- [x] `pmem init` appends `CLAUDE.md` snippet if CLAUDE.md exists
+- [ ] LanceDB as an alternative vector store option — evaluated, shelved (ChromaDB is fine for typical use)
+- [x] Better error messages — detect "Ollama not running", "model not found", actionable advice
+- [x] `/sleep` skill update — `pmem index` step conditionally runs if `.memory/config.json` exists
+- [ ] Multi-collection support — designed (see `docs/multi-collection-design.md`), not yet implemented
 
 ---
 
