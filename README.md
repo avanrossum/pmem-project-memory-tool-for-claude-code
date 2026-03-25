@@ -69,16 +69,18 @@ That's it. Claude Code can now query your project's memory.
 ## CLI reference
 
 ```
-pmem init                    Create .memory/config.json with sensible defaults
-pmem index                   Incremental index (only changed files)
-pmem index --force           Full reindex (re-embed everything)
-pmem index --dry-run         Show what would be indexed
-pmem query "your question"   Query memory from the terminal
-pmem query "..." --no-llm    Return raw chunks (no LLM synthesis)
-pmem status                  Show index state, stale files, config
-pmem serve                   Start the MCP server (used by Claude Code)
-pmem config                  Print current config
-pmem config --edit           Open config in $EDITOR
+pmem init                       Create .memory/config.json with sensible defaults
+pmem index                      Incremental index (only changed files)
+pmem index --force              Full reindex (re-embed everything)
+pmem index --dry-run            Show what would be indexed
+pmem query "your question"      Query memory from the terminal
+pmem query "..." --no-llm       Return raw chunks (no LLM synthesis)
+pmem status                     Show index state, stale files, config
+pmem exclude "snapshots/**"     Add a pattern to the exclude list
+pmem include "**/*.py"          Add a pattern to the include list
+pmem serve                      Start the MCP server (used by Claude Code)
+pmem config                     Print current config
+pmem config --edit              Open config in $EDITOR
 ```
 
 ## MCP tools
@@ -128,7 +130,7 @@ Once registered, Claude Code has access to four tools:
 
 | Provider | Config | Notes |
 |----------|--------|-------|
-| `ollama` (default) | `endpoint: "http://localhost:11434"` | Uses `/api/embeddings`. Free, local. |
+| `ollama` (default) | `endpoint: "http://localhost:11434"` | Uses `/api/embed` (batch). Free, local. |
 | `openai_compatible` | Any OpenAI-compatible endpoint | Uses `/v1/embeddings`. Works with LMStudio, vLLM, etc. |
 
 ### LLM synthesis
@@ -167,6 +169,25 @@ Add to your `.gitignore`:
 .memory/index_state.json
 ```
 
+## Skills (optional)
+
+pmem ships with two Claude Code slash command skills for session management:
+
+- **`/welcome`** — Run at the start of each session. Reads governance files, runs incremental reindex, confirms readiness.
+- **`/sleep`** — Run at the end of each session. Full governance pass: updates tasks, docs, changelog, memory, and reindexes.
+
+### Install skills
+
+```bash
+# Symlink (stays in sync with repo)
+ln -sf "$(pwd)/skills/welcome.md" ~/.claude/commands/welcome.md
+ln -sf "$(pwd)/skills/sleep.md" ~/.claude/commands/sleep.md
+
+# Or copy
+cp skills/welcome.md ~/.claude/commands/welcome.md
+cp skills/sleep.md ~/.claude/commands/sleep.md
+```
+
 ## Recommended CLAUDE.md snippet
 
 Add this to any project using pmem so Claude knows it's available:
@@ -174,13 +195,16 @@ Add this to any project using pmem so Claude knows it's available:
 ```markdown
 ## Project Memory
 
-This project has a local RAG memory index. Query it via the `memory_query` MCP tool for:
-- Past architectural decisions
-- Why specific design choices were made
-- Historical task context and outcomes
-- Known gotchas and lessons learned
+This project has a local RAG memory index via `pmem`. Use the `memory_query` MCP tool when:
+- Looking for past decisions, context, or rationale ("why did we do X?")
+- Searching for historical task context or outcomes
+- Finding documented gotchas or lessons learned
 
-Run `pmem status` to check index freshness. Run `pmem index` to manually refresh.
+Do NOT use memory_query for: reading specific known files, checking current code
+state, or anything derivable from `git log`. The index updates at session start
+(`/welcome`) and session end (`/sleep`), so it may be slightly behind mid-session.
+
+If results seem stale, run `memory_reindex` to refresh.
 ```
 
 ## Hardware notes
