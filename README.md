@@ -88,12 +88,12 @@ pmem config                     Print current config
 pmem config --edit              Open config in $EDITOR
 pmem config --global            Show global config
 pmem config --init-global       Create global config at ~/.config/pmem/config.json
-pmem watch                      Watch for file changes and reindex automatically
+pmem watch                      Poll for changes and reindex automatically (every 5s)
 pmem install-skills             Install /welcome, /sleep, /reindex to Claude Code
 pmem install-skills --link      Symlink instead of copy (macOS/Linux)
 ```
 
-> **Note:** Don't run `pmem index` from the terminal while Claude Code is active on the same project — use the `memory_reindex` MCP tool (or `/reindex` skill) instead. `pmem watch` alongside Claude Code is relatively untested — if you experience issues, stop the watcher and rely on `/welcome` and `/sleep` for index freshness.
+> **Note:** Don't run `pmem index` from the terminal while Claude Code is active on the same project — use the `memory_reindex` MCP tool (or `/reindex` skill) instead. `pmem watch` uses polling (not filesystem events) so it works reliably on all platforms.
 
 ## MCP tools
 
@@ -133,7 +133,7 @@ Once registered, Claude Code has access to four tools:
   },
   "query": {
     "top_k": 8,
-    "auto_reindex_on_query": true
+    "auto_reindex_on_query": false
   }
 }
 ```
@@ -162,7 +162,7 @@ For standalone terminal use (`pmem query`), you can enable synthesis by setting 
 ### Query options
 
 - **`top_k`** — number of chunks to retrieve per query (default: 8)
-- **`auto_reindex_on_query`** — check for stale files before every query and re-embed if needed (default: true, adds ~100ms)
+- **`auto_reindex_on_query`** — check for stale files before every query and re-embed if needed (default: false — `/welcome`, `/sleep`, and `pmem watch` handle freshness)
 
 ## What gets created in your project
 
@@ -245,7 +245,7 @@ If results seem stale, run `memory_reindex` to refresh.
 - **Local-first** — no data leaves your machine. No API keys required.
 - **Portable** — install once globally, `pmem init` in any project.
 - **Low friction** — setup takes under 2 minutes. Querying is automatic via MCP.
-- **Minimal dependencies** — no LangChain, no LlamaIndex. Just ChromaDB, httpx, click, and the MCP SDK.
+- **Minimal dependencies** — no LangChain, no LlamaIndex. Just ChromaDB, httpx, click, pathspec, and the MCP SDK.
 
 ## License
 

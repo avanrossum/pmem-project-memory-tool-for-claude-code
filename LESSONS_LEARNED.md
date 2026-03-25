@@ -56,5 +56,11 @@ Opening a ChromaDB PersistentClient on a 25MB database takes ~700ms. The `run_in
 ### Claude Code periodically kills and restarts MCP server subprocesses
 Observed during testing: the MCP server process exits cleanly (`SERVER_SHUTDOWN` + `SERVER_EXIT atexit`) after minutes of idle time, then Claude Code restarts it seconds later. If a tool call is in flight when this happens, it gets dropped. The `/sleep` skill now runs reindex as Step 2 (early) instead of Step 6 (late) to avoid this.
 
+### fnmatch doesn't understand `**` — use pathspec everywhere
+Python's `fnmatch` treats `*` and `**` identically and doesn't do recursive directory matching. `fnmatch.fnmatch("README.md", "**/*.md")` returns `False`. The watcher originally used `fnmatch` while the indexer used `pathspec` (gitignore-style matching), causing the watcher to silently ignore files. Rule: always use `pathspec` for glob pattern matching in this project — never `fnmatch`.
+
+### Filesystem event watchers (watchdog/FSEvents) are unreliable for this use case
+macOS FSEvents silently drops events in certain conditions (temp directories, files created by subprocess). After debugging multiple missed-detection cases, we replaced watchdog with simple 5-second polling. The indexer already has hash-based change detection, so polling is just as effective and works identically on all platforms. Simpler, fewer dependencies, more reliable.
+
 ### The "Interrupted" cascade in Claude Code
 When Claude Code enters an "Interrupted" state (from any cause — MCP failure, bash error, user interrupt), subsequent tool calls also fail with "Interrupted." The session becomes effectively unrecoverable. This is a Claude Code bug, not specific to pmem, but MCP server instability can trigger it. Updating to the latest Claude Code version helped.

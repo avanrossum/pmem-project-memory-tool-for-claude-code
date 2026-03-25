@@ -2,22 +2,26 @@
 
 ---
 
-## [Unreleased]
+## [0.5.0] — 2026-03-25
 
 ### Added
 - Server heartbeat logging (every 60s) for diagnosing idle server exits
 - `SERVER_STDIO_OPEN`, `SERVER_RUN_EXITED`, `SERVER_CANCELLED` lifecycle events in log
 - Full traceback logging on server crash
+- 18 watcher tests covering polling, lifecycle, error handling
 
 ### Fixed
+- **Watcher pattern matching bug** — `_matches_patterns` used `fnmatch` which doesn't understand `**` globs. Root-level files and many nested paths were silently ignored. Switched to `pathspec` (gitignore-style) to match the indexer's behavior.
 - `auto_reindex_on_query` now defaults to `false` — was causing unnecessary file hashing overhead
 - No-op reindex skips ChromaDB entirely when nothing changed (~250ms vs ~3.6s)
 - `/sleep` runs reindex as Step 2 (early) instead of Step 6 — MCP server may be unavailable late in flow
+- README: corrected `auto_reindex_on_query` default from `true` to `false`
 
 ### Changed
+- **`pmem watch` rewritten as polling-based** — replaced watchdog/FSEvents with a simple 5-second polling loop using the indexer's hash-based change detection. Works reliably on all platforms (macOS, Linux, Windows). Runs an initial index on startup to catch stale files.
 - LLM synthesis disabled by default — Claude interprets raw chunks directly, no second LLM needed
 - `/welcome` confirms reindex result instead of silently completing
-- `pmem watch` help text notes concurrent use with Claude Code is relatively untested
+- Removed `watchdog` dependency — no longer needed
 
 ## [0.4.0] — 2026-03-25
 

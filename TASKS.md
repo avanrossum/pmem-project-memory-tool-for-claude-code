@@ -31,3 +31,4 @@
 | Skills: /welcome, /sleep, /reindex | 2026-03-25 | All three built, using MCP tools not bash. Reindex moved to Step 2 in /sleep. |
 | LLM synthesis default disabled | 2026-03-25 | Claude interprets chunks directly — no need for second LLM. Available as opt-in. |
 | README + docs for open source | 2026-03-25 | README covers full setup, CLI reference, skills, config, known issues. |
+| Watcher rewrite + tests | 2026-03-25 | Replaced watchdog/FSEvents with polling (5s). Fixed fnmatch bug. 8 new watcher tests, 27 total. Removed watchdog dependency. |

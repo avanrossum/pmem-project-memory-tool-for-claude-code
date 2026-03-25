@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Project Memory Tool
 
 > **Last updated:** 2026-03-25
-> Current state: v0.4.0 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
+> Current state: v0.5.0 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
 
 ---
 
@@ -25,7 +25,7 @@
 | Incremental indexer | ✅ Done | Hash-based, skips ChromaDB when nothing changed |
 | Global config | ✅ Done | ~/.config/pmem/config.json, deep-merged with project |
 | Skills | ✅ Done | /welcome, /sleep, /reindex — all use MCP tools |
-| File watcher | ✅ Done | watchdog-based, 2s debounce |
+| File watcher | ✅ Done | Polling-based (5s interval), cross-platform, no watchdog dependency |
 | Multi-collection | 📐 Designed | See docs/multi-collection-design.md |
 
 ---
@@ -40,7 +40,7 @@
 | `src/project_memory/store.py` | ChromaDB wrapper — upsert, query, delete, stale lock recovery |
 | `src/project_memory/query.py` | Retrieval logic + optional LLM synthesis |
 | `src/project_memory/mcp_server.py` | MCP server — async thread pool, lazy imports, file logging |
-| `src/project_memory/watcher.py` | watchdog-based file watcher with debounce |
+| `src/project_memory/watcher.py` | Polling-based file watcher (5s interval) |
 | `skills/welcome.md` | /welcome skill — session start |
 | `skills/sleep.md` | /sleep skill — session governance pass |
 | `skills/reindex.md` | /reindex skill — quick trigger |
@@ -98,7 +98,6 @@ The MCP server (`pmem serve`) runs as a subprocess spawned by Claude Code via st
 | `mcp` | latest stable | Official Anthropic MCP Python SDK |
 | `click` | latest stable | CLI framework |
 | `httpx` | latest stable | HTTP client for embedding + LLM calls |
-| `watchdog` | latest stable | File watching for `pmem watch` |
 | `pathspec` | latest stable | Gitignore-style pattern matching for include/exclude |
 
 No LangChain, no LlamaIndex — keep dependencies minimal and the code readable.

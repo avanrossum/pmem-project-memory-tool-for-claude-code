@@ -22,7 +22,7 @@ Everything needed for a usable, working tool.
 
 ## Phase 2 — Robustness & Polish (mostly complete)
 
-- [x] `pmem watch` — background file watcher; re-indexes on change (watchdog, 2s debounce)
+- [x] `pmem watch` — polling-based watcher; re-indexes on change (5s interval, cross-platform)
 - [x] Global default config at `~/.config/pmem/config.json` — deep-merged with project config
 - [ ] `pmem init --interactive` — guided setup (asks for endpoints, writes config)
 - [x] `pmem init` auto-appends `.memory/chroma/` and `index_state.json` to `.gitignore`
