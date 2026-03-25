@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-03-25
+
+### Added
+- `/reindex` skill — quick trigger for memory_reindex MCP tool
+- `pmem install-skills` command — copies skills to `~/.claude/commands/` with `--link` option for symlinks
+- MCP server file logging to `~/.pmem-mcp.log` for diagnosing issues
+- `pmem init` now detects and prints the full path to `pmem` in the MCP snippet (fixes pyenv/version manager compatibility)
+
+### Fixed
+- **MCP server session stability** — all blocking operations (ChromaDB, embedding, file I/O) now run in `asyncio.to_thread()` with 30s timeout, preventing event loop stalls that killed Claude Code sessions
+- **MCP server lazy imports** — heavy modules only load on tool call, not on server startup
+- **`auto_reindex_on_query` disabled in MCP context** — `/welcome` and `/sleep` handle freshness, removes seconds of overhead per query
+- **`memory_status` no longer opens ChromaDB** — counts chunks from index_state.json (instant vs 700ms)
+- **Stale SQLite lock recovery** — `ChunkStore` auto-cleans WAL/SHM files on init failure
+- **MCP registration requires full path** — pyenv shims don't work in Claude Code's subprocess environment; documented and auto-detected
+
+### Changed
+- `/welcome` and `/sleep` skills now use `memory_reindex` MCP tool instead of `pmem index` bash command (prevents database lock conflicts)
+- CLAUDE.md snippet updated: memory tools should only be used when explicitly asked, not proactively
+
 ## [0.3.0] — 2026-03-25
 
 ### Added

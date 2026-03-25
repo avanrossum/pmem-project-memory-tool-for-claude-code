@@ -50,12 +50,14 @@ Add this to `~/.claude/settings.json` (one-time, works for all projects):
 {
   "mcpServers": {
     "project-memory": {
-      "command": "pmem",
+      "command": "/full/path/to/pmem",
       "args": ["serve"]
     }
   }
 }
 ```
+
+> **Important:** Use the full path to `pmem`, not just `"pmem"`. Claude Code spawns MCP servers as subprocesses without your shell profile, so pyenv shims and other version managers won't work. Run `which pmem` to get the path. `pmem init` prints the correct snippet automatically.
 
 ### 4. Initialize in your project
 

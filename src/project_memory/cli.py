@@ -116,17 +116,23 @@ def init() -> None:
 
     click.echo(click.style("  " + "─" * 40, fg="white", dim=True))
     click.echo(click.style("  Done ", fg="green", bold=True))
+    # Detect the full path to pmem for the MCP snippet — pyenv shims
+    # and other version managers aren't available in Claude Code's subprocess env.
+    import shutil
+    pmem_path = shutil.which("pmem") or "pmem"
+
     click.echo()
     click.echo(click.style("  Next steps:", fg="cyan", bold=True))
     click.echo(click.style("  1. ", fg="white") + "Edit .memory/config.json to set your embedding/LLM endpoints")
     click.echo(click.style("  2. ", fg="white") + "Add to ~/.claude/settings.json under mcpServers:")
     click.echo()
     click.echo(click.style('     "project-memory": {', fg="white", dim=True))
-    click.echo(click.style('       "command": "pmem",', fg="white", dim=True))
+    click.echo(click.style(f'       "command": "{pmem_path}",', fg="white", dim=True))
     click.echo(click.style('       "args": ["serve"]', fg="white", dim=True))
     click.echo(click.style("     }", fg="white", dim=True))
     click.echo()
-    click.echo(click.style("  3. ", fg="white") + "Run: " + click.style("pmem index", fg="cyan", bold=True))
+    click.echo(click.style("  3. ", fg="white") + "Run: " + click.style("pmem install-skills", fg="cyan", bold=True))
+    click.echo(click.style("  4. ", fg="white") + "Run: " + click.style("pmem index", fg="cyan", bold=True))
 
 
 @cli.command()
