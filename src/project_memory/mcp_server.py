@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from project_memory.config import load_config
-from project_memory.indexer import get_stale_files, run_index, IndexState
-from project_memory.query import query_memory, retrieve
-from project_memory.store import ChunkStore
-
 server = Server("project-memory")
 
 
 def _get_config():
     """Load config from CWD, raising a readable error if not found."""
+    from project_memory.config import load_config
+
     return load_config()
 
 
@@ -104,6 +100,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         config = _get_config()
 
         if name == "memory_query":
+            from project_memory.query import query_memory
+
+            # Disable auto_reindex_on_query in MCP context — /welcome and /sleep handle it.
+            # This avoids hashing all files on every query (saves seconds).
+            config.query.auto_reindex_on_query = False
+
             result = query_memory(
                 question=arguments["question"],
                 config=config,
@@ -119,6 +121,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             return [TextContent(type="text", text=text)]
 
         elif name == "memory_search":
+            from project_memory.query import retrieve
+
+            config.query.auto_reindex_on_query = False
+
             chunks = retrieve(arguments["query"], config)
             if not chunks:
                 return [TextContent(type="text", text="No results found.")]
@@ -130,18 +136,24 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             return [TextContent(type="text", text=text)]
 
         elif name == "memory_status":
-            store = ChunkStore(config)
-            stale = get_stale_files(config)
+            from project_memory.indexer import get_stale_files, IndexState
+
+            # Use IndexState directly for most stats — avoid opening ChromaDB
+            # just for a chunk count (saves ~700ms on large projects).
             state_path = config.memory_dir / "index_state.json"
             state = IndexState.load(state_path)
+            stale = get_stale_files(config)
             last_indexed = max(
                 (f.get("last_indexed", "") for f in state.files.values()),
                 default="never",
             )
+            total_chunks = sum(
+                len(f.get("chunk_ids", [])) for f in state.files.values()
+            )
             text = (
                 f"Project: {config.project_name}\n"
                 f"Indexed files: {len(state.files)}\n"
-                f"Total chunks: {store.count}\n"
+                f"Total chunks: {total_chunks}\n"
                 f"Last indexed: {last_indexed}\n"
                 f"Stale files: {len(stale)}\n"
                 f"Embedding model: {config.embedding.model}\n"
@@ -152,6 +164,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             return [TextContent(type="text", text=text)]
 
         elif name == "memory_reindex":
+            from project_memory.indexer import run_index
+
             force = arguments.get("force", False)
             result = run_index(config, force=force)
             text = (
