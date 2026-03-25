@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 import time
+import warnings
 from typing import Any
+
+# Suppress all warnings — stray output to stderr can corrupt the MCP stdio protocol
+warnings.filterwarnings("ignore")
+os.environ["PYTHONWARNINGS"] = "ignore"
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -240,5 +246,23 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
 async def run_server() -> None:
     """Run the MCP server over stdio."""
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
+    import atexit
+    import signal
+
+    logger.info("SERVER_START pid=%d", __import__("os").getpid())
+    atexit.register(lambda: logger.info("SERVER_EXIT atexit"))
+
+    def _signal_handler(signum, frame):
+        logger.info(f"SERVER_SIGNAL {signal.Signals(signum).name}")
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, _signal_handler)
+
+    try:
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(read_stream, write_stream, server.create_initialization_options())
+    except Exception as e:
+        logger.error(f"SERVER_CRASH {type(e).__name__}: {e}")
+        raise
+    finally:
+        logger.info("SERVER_SHUTDOWN")
