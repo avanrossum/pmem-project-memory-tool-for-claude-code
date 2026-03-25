@@ -4,6 +4,16 @@ A portable, local-first RAG memory layer for [Claude Code](https://docs.anthropi
 
 Think of it as long-term memory that persists across Claude Code sessions, queryable via MCP.
 
+## Why this exists
+
+I use Claude Code for more than writing code. I run specialized agents that maintain context across infrastructure, documentation, content pipelines, and operational workflows — sometimes six or more projects simultaneously. Each project accumulates hundreds of markdown files: architecture decisions, task logs, lessons learned, archived roadmaps.
+
+Grepping through all of that wastes tokens and misses semantic matches. "What did we decide about the auth flow?" doesn't match "JWT was chosen over session tokens because..." — not with grep, anyway.
+
+So I built institutional memory for AI agents. pmem indexes your project's documentation into a local vector store, and Claude queries it by meaning instead of by keyword. No data leaves your machine. Setup takes two minutes.
+
+Read more about the methodology behind this: [Cognitive Offloading](https://mipyip.com/blog/cognitive-offloading) and [The Governance Documents](https://mipyip.com/blog/the-governance-documents).
+
 ## How it works
 
 ```
@@ -36,8 +46,8 @@ ollama pull nomic-embed-text
 ### 2. Install pmem
 
 ```bash
-git clone https://github.com/yourusername/project-memory-tool.git
-cd project-memory-tool
+git clone https://github.com/avanrossum/pmem-project-memory-tool-for-claude.git
+cd pmem-project-memory-tool-for-claude
 pip install -e .
 pmem install-skills
 ```
@@ -246,6 +256,16 @@ If results seem stale, run `memory_reindex` to refresh.
 - **Portable** — install once globally, `pmem init` in any project.
 - **Low friction** — setup takes under 2 minutes. Querying is automatic via MCP.
 - **Minimal dependencies** — no LangChain, no LlamaIndex. Just ChromaDB, httpx, click, pathspec, and the MCP SDK.
+
+## Related reading
+
+- [Cognitive Offloading](https://mipyip.com/blog/cognitive-offloading) — The methodology behind deliberate memory externalization
+- [The Governance Documents](https://mipyip.com/blog/the-governance-documents) — ROADMAP.md, ARCHITECTURE.md, CLAUDE.md, CHANGELOG.md — the files pmem was built to index
+- [What Is Pass@1?](https://mipyip.com/blog/what-is-pass-at-1) — The development methodology where governance documents are thorough enough that AI generates correct implementations on the first attempt
+
+## Author
+
+Built by [Alex van Rossum](https://mipyip.com/about) — systems architect, fractional CTO, and the kind of person who builds tools when the existing ones waste too many tokens.
 
 ## License
 
