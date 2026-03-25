@@ -72,13 +72,13 @@ Note: for projects with a `CLAUDE.md`, the repo files are the authoritative sour
 
 ## Step 6 — Update Project Memory Index
 
-If this project has a `.memory/config.json` (i.e. the project memory tool is set up), run:
+If this project has a `.memory/config.json` (i.e. the project memory tool is set up):
 
-```bash
-pmem index
-```
+**Use the `memory_reindex` MCP tool** to refresh the index. This re-embeds any files changed during the session so that future sessions can query the updated context.
 
-This re-embeds any files changed during the session so that future sessions can query the updated context. If `pmem` is not installed or `.memory/config.json` does not exist, skip this step silently.
+Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
+
+If the `memory_reindex` MCP tool is not available, skip this step silently.
 
 ---
 
