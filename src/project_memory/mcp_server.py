@@ -258,11 +258,27 @@ async def run_server() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, _signal_handler)
 
+    async def _heartbeat():
+        """Log a heartbeat every 60s so we can see if the server is alive but idle."""
+        while True:
+            await asyncio.sleep(60)
+            logger.info("SERVER_HEARTBEAT pid=%d", os.getpid())
+
     try:
         async with stdio_server() as (read_stream, write_stream):
-            await server.run(read_stream, write_stream, server.create_initialization_options())
+            logger.info("SERVER_STDIO_OPEN")
+            heartbeat_task = asyncio.create_task(_heartbeat())
+            try:
+                await server.run(read_stream, write_stream, server.create_initialization_options())
+            finally:
+                heartbeat_task.cancel()
+            logger.info("SERVER_RUN_EXITED")
+    except asyncio.CancelledError:
+        logger.info("SERVER_CANCELLED")
     except Exception as e:
         logger.error(f"SERVER_CRASH {type(e).__name__}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise
     finally:
         logger.info("SERVER_SHUTDOWN")
