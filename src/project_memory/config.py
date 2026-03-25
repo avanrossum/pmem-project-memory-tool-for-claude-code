@@ -21,7 +21,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "endpoint": "http://localhost:1234/v1",
         "model": "local-model",
         "provider": "openai_compatible",
-        "enabled": True,
+        "enabled": False,
     },
     "indexing": {
         "include": ["**/*.md", "**/*.txt"],

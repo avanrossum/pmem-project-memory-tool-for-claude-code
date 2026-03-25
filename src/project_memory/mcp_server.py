@@ -45,7 +45,7 @@ def _do_query(arguments: dict[str, Any]) -> str:
     result = query_memory(
         question=arguments["question"],
         config=config,
-        synthesize_answer=arguments.get("synthesize", True),
+        synthesize_answer=arguments.get("synthesize", False),
         top_k=arguments.get("top_k"),
     )
     text = result["answer"]
@@ -140,8 +140,8 @@ async def list_tools() -> list[Tool]:
                     },
                     "synthesize": {
                         "type": "boolean",
-                        "description": "If true, synthesize an answer via LLM. If false, return raw chunks.",
-                        "default": True,
+                        "description": "If true, synthesize via local LLM (requires LLM endpoint). Defaults to false — returns raw chunks for Claude to interpret directly.",
+                        "default": False,
                     },
                     "top_k": {
                         "type": "integer",

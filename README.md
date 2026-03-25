@@ -122,7 +122,7 @@ Once registered, Claude Code has access to four tools:
     "endpoint": "http://localhost:1234/v1",
     "model": "local-model",
     "provider": "openai_compatible",
-    "enabled": true
+    "enabled": false
   },
   "indexing": {
     "include": ["**/*.md", "**/*.txt"],
@@ -145,11 +145,11 @@ Once registered, Claude Code has access to four tools:
 | `ollama` (default) | `endpoint: "http://localhost:11434"` | Uses `/api/embed` (batch). Free, local. |
 | `openai_compatible` | Any OpenAI-compatible endpoint | Uses `/v1/embeddings`. Works with LMStudio, vLLM, etc. |
 
-### LLM synthesis
+### LLM synthesis (optional, disabled by default)
 
-Synthesis is optional. When enabled, retrieved chunks are sent to a local LLM to generate a concise answer. When disabled (or when using `--no-llm`), raw chunks are returned directly.
+When used via MCP with Claude Code, LLM synthesis is unnecessary — Claude interprets the raw chunks directly. Synthesis is disabled by default.
 
-Any OpenAI-compatible endpoint works — LMStudio, Ollama's OpenAI mode, vLLM, or even a remote API.
+For standalone terminal use (`pmem query`), you can enable synthesis by setting `llm.enabled: true` and pointing at any OpenAI-compatible endpoint (LMStudio, Ollama's OpenAI mode, vLLM, etc.). This sends retrieved chunks to a local LLM for a summarized answer.
 
 ### Indexing options
 
