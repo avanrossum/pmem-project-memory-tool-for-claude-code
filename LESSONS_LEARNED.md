@@ -38,5 +38,8 @@ As of Claude Code v2.1.x, MCP servers are defined in `~/.claude.json` (global) o
 ### Claude Code shows "Running…" after MCP tool completes
 When an MCP tool finishes while Claude is still generating a response, the UI may continue to show "Running…" next to the tool call. This is a Claude Code display issue — the tool has completed successfully. Check `~/.pmem-mcp.log` to verify.
 
+### MCP tool timeout can be configured
+If memory tools are timing out, set `MCP_TIMEOUT` and `MCP_TOOL_TIMEOUT` in `~/.claude/settings.json` under `env`. Default timeouts should be sufficient for pmem (typical calls complete in under 1s), but larger projects or slow Ollama instances may need more headroom. See [Issue #424](https://github.com/anthropics/claude-code/issues/424) and [Issue #22542](https://github.com/anthropics/claude-code/issues/22542).
+
 ### CLAUDE.md must explicitly restrict proactive memory tool use
 Without clear instructions, Claude will proactively call `memory_query` during normal work, adding latency to every interaction. The CLAUDE.md snippet must say "ONLY use memory tools when the user explicitly asks." See `skills/claude-md-snippet.md` for the recommended wording.
