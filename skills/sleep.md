@@ -19,7 +19,17 @@ If none of these exist, adapt: look for whatever passes as documentation in this
 
 ---
 
-## Step 2 — Review Open Tasks
+## Step 2 — Update Project Memory Index (do this early)
+
+If this project has a `.memory/config.json`, **use the `memory_reindex` MCP tool now** — before the governance updates below. This ensures the index captures any documentation changes made during the session. Do it early because the MCP server may not be available later in the flow.
+
+After the reindex completes, briefly confirm it — e.g. "Memory index refreshed (2 files re-embedded)."
+
+Do NOT run `pmem index` as a bash command. If the MCP tool is not available, skip silently.
+
+---
+
+## Step 3 — Review Open Tasks
 
 For each open or in-progress task:
 - Is the TASK.md (or equivalent) up to date with what happened this session?
@@ -30,7 +40,7 @@ For each open or in-progress task:
 
 ---
 
-## Step 3 — Update Governance Files
+## Step 4 — Update Governance Files
 
 Work through each governance file that exists and ask: *does this reflect the current state of the world?*
 
@@ -46,7 +56,7 @@ Work through each governance file that exists and ask: *does this reflect the cu
 
 ---
 
-## Step 4 — Capture Loose Context
+## Step 5 — Capture Loose Context
 
 Scan the conversation for anything important that hasn't been written down yet:
 
@@ -60,25 +70,13 @@ Write these to the appropriate file. If no file is right, add them to LESSONS_LE
 
 ---
 
-## Step 5 — Check Memory
+## Step 6 — Check Memory
 
 If this project uses the auto-memory system (`~/.claude/projects/.../memory/`):
 - Are there user preferences, feedback, or project context items worth saving that aren't already there?
 - Are any existing memories now stale or incorrect? Update or remove them.
 
 Note: for projects with a `CLAUDE.md`, the repo files are the authoritative source of truth. Memory is a convenience cache only.
-
----
-
-## Step 6 — Update Project Memory Index
-
-If this project has a `.memory/config.json` (i.e. the project memory tool is set up):
-
-**Use the `memory_reindex` MCP tool** to refresh the index. This re-embeds any files changed during the session so that future sessions can query the updated context.
-
-Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
-
-If the `memory_reindex` MCP tool is not available, skip this step silently.
 
 ---
 
