@@ -346,9 +346,9 @@ def include(pattern: str) -> None:
 def watch() -> None:
     """Watch for file changes and reindex automatically.
 
-    Note: Do not run pmem watch while Claude Code is active on the same project.
-    The watcher and MCP server can conflict on the ChromaDB database. Use /welcome
-    and /sleep skills instead when working with Claude Code.
+    Running alongside Claude Code is relatively untested — concurrent ChromaDB
+    access may cause occasional lock contention. If you experience issues, stop
+    the watcher and rely on /welcome and /sleep skills for index freshness instead.
     """
     try:
         cfg = load_config()
