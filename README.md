@@ -89,7 +89,7 @@ pmem install-skills             Install /welcome, /sleep, /reindex to Claude Cod
 pmem install-skills --link      Symlink instead of copy (macOS/Linux)
 ```
 
-> **Note:** Don't run `pmem index` from the terminal while Claude Code is active with the MCP server — it can cause database lock conflicts. Use the `memory_reindex` MCP tool from within Claude Code instead, or close Claude Code first.
+> **Note:** Don't run `pmem index` or `pmem watch` from the terminal while Claude Code is active on the same project — they can cause database lock conflicts with the MCP server. Use the `memory_reindex` MCP tool (or `/reindex` skill) from within Claude Code instead. `pmem watch` is ideal for keeping the index fresh during manual editing sessions when Claude Code is not running.
 
 ## MCP tools
 

@@ -338,7 +338,12 @@ def include(pattern: str) -> None:
 
 @cli.command()
 def watch() -> None:
-    """Watch for file changes and reindex automatically."""
+    """Watch for file changes and reindex automatically.
+
+    Note: Do not run pmem watch while Claude Code is active on the same project.
+    The watcher and MCP server can conflict on the ChromaDB database. Use /welcome
+    and /sleep skills instead when working with Claude Code.
+    """
     try:
         cfg = load_config()
     except FileNotFoundError as e:
