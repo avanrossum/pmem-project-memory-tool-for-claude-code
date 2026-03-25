@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import sys
+import time
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
+
+# Log to stderr so it doesn't interfere with MCP stdio protocol.
+# View with: tail -f ~/.pmem-mcp.log
+_log_handler = logging.FileHandler(
+    str(__import__("pathlib").Path.home() / ".pmem-mcp.log"), mode="a"
+)
+_log_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+logger = logging.getLogger("pmem-mcp")
+logger.addHandler(_log_handler)
+logger.setLevel(logging.INFO)
 
 server = Server("project-memory")
 
@@ -110,6 +123,7 @@ def _do_reindex(arguments: dict[str, Any]) -> str:
 @server.list_tools()
 async def list_tools() -> list[Tool]:
     """Return the list of available MCP tools."""
+    logger.info("LIST_TOOLS called")
     return [
         Tool(
             name="memory_query",
@@ -197,8 +211,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     All blocking work runs in a thread pool so the async event loop stays
     responsive — prevents the MCP protocol connection from breaking.
     """
+    logger.info(f"CALL {name} args={arguments}")
+    start = time.time()
+
     handler = _HANDLERS.get(name)
     if handler is None:
+        logger.info(f"UNKNOWN {name}")
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     try:
@@ -206,12 +224,17 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             asyncio.to_thread(handler, arguments),
             timeout=TOOL_TIMEOUT,
         )
+        elapsed = time.time() - start
+        logger.info(f"OK {name} {elapsed:.1f}s ({len(text)} chars)")
         return [TextContent(type="text", text=text)]
     except asyncio.TimeoutError:
+        logger.error(f"TIMEOUT {name} after {TOOL_TIMEOUT}s")
         return [TextContent(type="text", text=f"Error: {name} timed out after {TOOL_TIMEOUT}s")]
     except FileNotFoundError as e:
+        logger.error(f"NOT_FOUND {name}: {e}")
         return [TextContent(type="text", text=f"Error: {e}")]
     except Exception as e:
+        logger.error(f"ERROR {name}: {type(e).__name__}: {e}")
         return [TextContent(type="text", text=f"Error: {type(e).__name__}: {e}")]
 
 
