@@ -44,6 +44,7 @@ Everything needed for a usable, working tool.
 - [ ] `pmem diff "question"` — show what changed in the answer since last index
 - [ ] Support for non-markdown file types (`.py`, `.apex`, `.js`) with language-aware chunking
 - [ ] `pmem export` — dump indexed chunks to JSON for backup or migration
+- [ ] Image indexing via multimodal LLM — describe images (`.png`, `.jpg`, `.svg`, diagrams, screenshots) using a vision-capable local model (e.g. LLaVA via Ollama/LMStudio) or optionally Claude API, then chunk and embed the descriptions. Enables semantic search over architecture diagrams, UI mockups, whiteboard photos, etc.
 - [ ] Web UI (optional) — lightweight local UI for browsing chunks and running queries
 - [ ] Cloudflare tunnel setup guide — run embedding + LLM on Mac Studio, query from any machine
 

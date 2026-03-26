@@ -346,6 +346,61 @@ Run `pmem status` to check index freshness. Run `pmem index` to manually refresh
 
 ---
 
+## Planned: Image Indexing via Multimodal LLM
+
+Images can't be embedded directly, but a multimodal LLM can describe them — and that description can be chunked and embedded like any other text. This enables semantic search over architecture diagrams, UI mockups, screenshots, whiteboard photos, etc.
+
+### Workflow
+
+1. User adds image patterns to includes: `pmem include "**/*.png"`
+2. Indexer detects image files (by extension) and routes them through a vision pipeline instead of the text chunker
+3. Vision pipeline sends the image to a multimodal LLM to generate a text description
+4. Description is chunked and embedded like any other text
+5. Query results reference the source image path so the consumer knows where the image lives
+
+### Vision provider options
+
+Two tiers, following the existing local-first + optional API pattern:
+
+| Provider | Config | Notes |
+|----------|--------|-------|
+| Local multimodal model (default) | Ollama or LMStudio with a vision-capable model (e.g. LLaVA, Llama 3.2 Vision) | Free, local, no API key. Quality depends on model size. |
+| Claude API (optional) | Anthropic API key in config | Significantly better at describing complex diagrams and technical content. Costs per image. |
+
+### Config shape (preliminary)
+
+```json
+{
+  "vision": {
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434",
+    "model": "llava",
+    "prompt": "Describe this image in detail, focusing on technical content, labels, structure, and relationships."
+  }
+}
+```
+
+For Claude API:
+```json
+{
+  "vision": {
+    "provider": "anthropic",
+    "api_key": "sk-ant-...",
+    "model": "claude-sonnet-4-20250514"
+  }
+}
+```
+
+### Design considerations
+
+- Image descriptions should be cached in `index_state.json` (keyed by file hash) so unchanged images aren't re-described on every index run
+- The description becomes the "text" for that file — from there, the existing chunking and embedding pipeline handles everything
+- Image file extensions to support: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`
+- SVG files could optionally be indexed as both raw text (they're XML) and as rendered images
+- Large images should be resized before sending to the vision model to avoid unnecessary latency
+
+---
+
 ## What This Is Not
 
 - **Not a fine-tuned model** — knowledge lives in files, not weights. Adding/changing docs is instant.

@@ -163,11 +163,31 @@ For standalone terminal use (`pmem query`), you can enable synthesis by setting 
 
 ### Indexing options
 
-- **`include`** — glob patterns for files to index (default: `*.md`, `*.txt`)
-- **`exclude`** — glob patterns to skip (default: `.memory/`, `.git/`, `node_modules/`, lock files)
+- **`include`** — glob patterns for files to index (default: `**/*.md`, `**/*.txt`)
+- **`exclude`** — glob patterns to skip (default: `.memory/**`, `.git/**`, `node_modules/**`, `*.lock`)
 - **`chunk_size`** — target chunk size in words (default: 400)
 - **`chunk_overlap`** — overlap between chunks in words (default: 80)
-- **`split_on_headers`** — split markdown at H1/H2/H3 boundaries before splitting by size (default: true)
+- **`split_on_headers`** — split markdown at H1/H2/H3 boundaries before splitting by size (default: true). When a section is too large for a single chunk, it's split by size — but each sub-chunk retains the heading path from its parent section, so query results always show where in the document a chunk came from.
+
+### Indexing non-markdown files
+
+pmem indexes markdown and text files by default, but you can add any file type:
+
+```bash
+pmem include "**/*.py"
+pmem include "**/*.js"
+pmem include "**/*.apex"
+```
+
+This writes to your project's `.memory/config.json` — it only affects the current project, not other projects using pmem.
+
+Non-markdown files are chunked by size (word count with overlap), since there are no header boundaries to split on. This works well for most code and documentation formats. Language-aware chunking (splitting on function/class boundaries) is on the roadmap but not yet implemented — size-based splitting is good enough for semantic retrieval in practice.
+
+After adding new patterns, reindex to pick up the new files:
+
+```bash
+pmem index
+```
 
 ### Query options
 
