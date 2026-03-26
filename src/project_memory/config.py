@@ -53,7 +53,7 @@ class LLMConfig:
     endpoint: str = "http://localhost:1234/v1"
     model: str = "local-model"
     provider: str = "openai_compatible"
-    enabled: bool = True
+    enabled: bool = False
 
 
 @dataclass

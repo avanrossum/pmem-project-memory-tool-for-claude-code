@@ -36,7 +36,7 @@ def _make_config(tmp_path: Path, include=None, exclude=None) -> ProjectConfig:
 def _mock_index_result(**overrides):
     """Create a mock IndexResult with sensible defaults."""
     defaults = dict(
-        files_indexed=0, chunks_added=0, chunks_updated=0,
+        files_indexed=0, chunks_added=0, chunks_replaced=0,
         chunks_removed=0, duration_seconds=0.1,
     )
     defaults.update(overrides)

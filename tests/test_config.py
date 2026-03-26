@@ -74,4 +74,4 @@ def test_project_config_from_dict(tmp_path):
     assert config.query.top_k == 5
     assert config.query.auto_reindex_on_query is False
     # Defaults should be used for missing keys
-    assert config.llm.enabled is True
+    assert config.llm.enabled is False

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import re
+import tempfile
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -36,16 +39,62 @@ class IndexState:
     files: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def save(self, path: Path) -> None:
-        """Save index state to disk."""
-        path.write_text(json.dumps(self.files, indent=2) + "\n")
+        """Save index state to disk atomically with file locking.
+
+        Uses a lock file to serialize concurrent writers, and writes to a
+        temp file + rename for atomic replacement (no partial writes).
+        """
+        lock_path = path.with_suffix(".lock")
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=str(path.parent), suffix=".tmp"
+            )
+            closed = False
+            try:
+                os.write(tmp_fd, (json.dumps(self.files, indent=2) + "\n").encode())
+                os.close(tmp_fd)
+                closed = True
+                os.replace(tmp_path, str(path))
+            except BaseException:
+                if not closed:
+                    os.close(tmp_fd)
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
     @classmethod
     def load(cls, path: Path) -> IndexState:
-        """Load index state from disk."""
+        """Load index state from disk with file locking."""
         if not path.exists():
             return cls()
-        data = json.loads(path.read_text())
-        return cls(files=data)
+        lock_path = path.with_suffix(".lock")
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH)
+            try:
+                data = json.loads(path.read_text())
+            except (json.JSONDecodeError, ValueError) as exc:
+                raise RuntimeError(
+                    f"Corrupted index state at {path}. "
+                    f"Delete it and run 'pmem index --force' to rebuild. "
+                    f"Detail: {exc}"
+                ) from exc
+            if not isinstance(data, dict):
+                raise RuntimeError(
+                    f"Corrupted index state at {path}: expected a JSON object. "
+                    f"Delete it and run 'pmem index --force' to rebuild."
+                )
+            return cls(files=data)
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
 
 def scan_files(config: ProjectConfig) -> list[Path]:
@@ -120,6 +169,9 @@ def chunk_markdown(text: str, source_file: str, file_hash: str, config: ProjectC
 
 def _split_by_headers(text: str) -> list[tuple[str, str]]:
     """Split markdown text at H1/H2/H3 boundaries.
+
+    Only H1-H3 are used as split points. H4-H6 are intentionally kept within
+    their parent section — they're too granular to be useful chunk boundaries.
 
     Returns a list of (heading_path, section_text) tuples.
     """
@@ -213,9 +265,6 @@ def _embed_ollama(
                 batch = texts[i : i + batch_size]
                 done = min(i + len(batch), total)
 
-                if progress_callback:
-                    progress_callback(done, total)
-
                 resp = client.post(
                     f"{endpoint}/api/embed",
                     json={"model": model, "input": batch},
@@ -229,6 +278,9 @@ def _embed_ollama(
                         f"Ollama returned {resp.status_code}: {resp.text[:300]}"
                     )
                 all_embeddings.extend(resp.json()["embeddings"])
+
+                if progress_callback:
+                    progress_callback(done, total)
     except httpx.ConnectError:
         raise RuntimeError(
             f"Cannot connect to Ollama at {endpoint}. Is Ollama running? Start it with: ollama serve"
@@ -237,30 +289,38 @@ def _embed_ollama(
     return all_embeddings
 
 
-def _embed_openai_compatible(texts: list[str], config: ProjectConfig) -> list[list[float]]:
-    """Embed texts using an OpenAI-compatible API."""
+def _embed_openai_compatible(
+    texts: list[str],
+    config: ProjectConfig,
+    batch_size: int = 25,
+) -> list[list[float]]:
+    """Embed texts using an OpenAI-compatible API in batches."""
     endpoint = config.embedding.endpoint
     model = config.embedding.model
+    all_embeddings: list[list[float]] = []
     try:
         with httpx.Client(timeout=120.0) as client:
-            resp = client.post(
-                f"{endpoint}/v1/embeddings",
-                json={"model": model, "input": texts},
-            )
-            if resp.status_code == 404:
-                raise RuntimeError(
-                    f"Model '{model}' not found. Pull it with: ollama pull {model}"
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i : i + batch_size]
+                resp = client.post(
+                    f"{endpoint}/v1/embeddings",
+                    json={"model": model, "input": batch},
                 )
-            if resp.status_code != 200:
-                raise RuntimeError(
-                    f"Embedding API returned {resp.status_code}: {resp.text[:300]}"
-                )
-            data = resp.json()
-            return [item["embedding"] for item in data["data"]]
+                if resp.status_code == 404:
+                    raise RuntimeError(
+                        f"Model '{model}' not found. Pull it with: ollama pull {model}"
+                    )
+                if resp.status_code != 200:
+                    raise RuntimeError(
+                        f"Embedding API returned {resp.status_code}: {resp.text[:300]}"
+                    )
+                data = resp.json()
+                all_embeddings.extend(item["embedding"] for item in data["data"])
     except httpx.ConnectError:
         raise RuntimeError(
             f"Cannot connect to embedding endpoint at {endpoint}. Is the server running?"
         )
+    return all_embeddings
 
 
 @dataclass
@@ -269,7 +329,7 @@ class IndexResult:
 
     files_indexed: int = 0
     chunks_added: int = 0
-    chunks_updated: int = 0
+    chunks_replaced: int = 0
     chunks_removed: int = 0
     duration_seconds: float = 0.0
 
@@ -302,6 +362,12 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
     _log("Checking for changes", "step")
     files_to_index: list[tuple[str, Path]] = []
     for rel_str, abs_path in current_files.items():
+        if not force and rel_str in state.files:
+            # Fast mtime pre-check: skip hashing if mtime hasn't changed
+            stored_mtime = state.files[rel_str].get("mtime")
+            current_mtime = abs_path.stat().st_mtime
+            if stored_mtime is not None and current_mtime == stored_mtime:
+                continue
         fhash = hash_file(abs_path)
         if force or rel_str not in state.files or state.files[rel_str].get("hash") != fhash:
             files_to_index.append((rel_str, abs_path))
@@ -342,7 +408,7 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
     if all_old_ids:
         _log(f"Removing {len(all_old_ids)} stale chunks", "step")
         store.delete_chunks(all_old_ids)
-        result.chunks_updated = len(all_old_ids)
+        result.chunks_replaced = len(all_old_ids)
 
     _log("Chunking files", "step")
     all_chunks: list[Chunk] = []
@@ -380,8 +446,10 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
             result.chunks_added += len(file_chunks)
             result.files_indexed += 1
 
+            abs_path = current_files[rel_str]
             state.files[rel_str] = {
                 "hash": fhash,
+                "mtime": abs_path.stat().st_mtime,
                 "last_indexed": datetime.now(timezone.utc).isoformat(),
                 "chunk_ids": [c.chunk_id for c in file_chunks],
             }

@@ -53,6 +53,12 @@ All ChromaDB operations, embedding calls, and file I/O are synchronous and will 
 ### ChromaDB init is expensive on large indexes (~700ms for 6000 chunks)
 Opening a ChromaDB PersistentClient on a 25MB database takes ~700ms. The `run_index` function now checks for changes before opening ChromaDB — if nothing is stale, it returns immediately. The MCP `memory_status` tool reads from `index_state.json` instead of opening ChromaDB.
 
+### Don't delete WAL/SHM files to "fix" ChromaDB lock issues
+An earlier version had `_cleanup_stale_locks()` that deleted SQLite WAL/SHM files when ChromaDB failed to open. This is dangerous — if another process (MCP server, watcher) has the database open, deleting active WAL files causes data corruption. The fix was to remove the cleanup entirely and let ChromaDB/SQLite handle their own recovery. The retry-once pattern still exists but only catches specific exceptions.
+
+### Index state needs cross-process locking
+`index_state.json` is read and written by the MCP server, CLI, and watcher — potentially concurrently. Without file locking, two processes can read stale state, both index the same file, and one overwrites the other's changes. Uses `fcntl.flock` (shared lock for reads, exclusive for writes) plus atomic temp+rename writes.
+
 ### Claude Code periodically kills and restarts MCP server subprocesses
 Observed during testing: the MCP server process exits cleanly (`SERVER_SHUTDOWN` + `SERVER_EXIT atexit`) after minutes of idle time, then Claude Code restarts it seconds later. If a tool call is in flight when this happens, it gets dropped. The `/sleep` skill now runs reindex as Step 2 (early) instead of Step 6 (late) to avoid this.
 

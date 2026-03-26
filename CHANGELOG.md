@@ -2,6 +2,25 @@
 
 ---
 
+## [0.5.1] — 2026-03-26
+
+### Fixed
+- **Version mismatch** (H1) — `__init__.py` now reads version from `importlib.metadata` instead of hardcoded string that was stuck at 0.4.0
+- **LLM config default** (H2) — `LLMConfig.enabled` dataclass default changed from `True` to `False` to match `DEFAULT_CONFIG`; CLI users without an `llm` section no longer get synthesis errors
+- **Stale lock cleanup removed** (H3) — `_cleanup_stale_locks` deleted WAL/SHM files unconditionally, risking corruption when another process had the database open; retry now catches specific `sqlite3.OperationalError`/`ChromaError` instead of bare `except Exception`
+- **Index state concurrency** (H4) — `IndexState.save/load` now use `fcntl.flock` for cross-process serialization and atomic temp+rename writes; corrupted state files produce actionable error messages
+- **Signal handler** (H5) — MCP server signal handler no longer swallows SIGTERM/SIGINT; re-raises via `SIG_DFL` so the server can actually be killed
+- **Progress callback timing** (M6) — embedding progress fires after successful API response, not before the request
+
+### Changed
+- **mtime pre-check** (M1) — watcher/indexer skip SHA-256 hashing for files whose mtime hasn't changed, major performance improvement for polling
+- **OpenAI embedding batching** (M3) — `_embed_openai_compatible` now batches at 25 texts, matching the Ollama path
+- **Counter renamed** (M4) — `IndexResult.chunks_updated` → `chunks_replaced` for clearer semantics
+- **Log rotation** (L4) — MCP server uses `RotatingFileHandler` (5MB, 2 backups) instead of unbounded `FileHandler`
+- Cleaned up non-standard `__import__` hacks and `subprocess.os.environ` access
+- Removed unused `asdict` import from indexer
+- Added docstring note that H4-H6 headers are intentionally ignored by the markdown splitter
+
 ## [0.5.0] — 2026-03-25
 
 ### Added

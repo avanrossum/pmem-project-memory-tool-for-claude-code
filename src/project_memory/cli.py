@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -193,7 +194,7 @@ def index(force: bool, dry_run: bool) -> None:
         + click.style(" files  ", fg="white")
         + click.style(f"{result.chunks_added}", fg="cyan", bold=True)
         + click.style(" added  ", fg="white")
-        + click.style(f"{result.chunks_updated}", fg="yellow", bold=True)
+        + click.style(f"{result.chunks_replaced}", fg="yellow", bold=True)
         + click.style(" updated  ", fg="white")
         + click.style(f"{result.chunks_removed}", fg="red", bold=True)
         + click.style(" removed", fg="white")
@@ -417,7 +418,7 @@ def config_cmd(edit: bool, show_global: bool, init_global: bool) -> None:
     config_path = cfg.memory_dir / "config.json"
 
     if edit:
-        editor = subprocess.os.environ.get("EDITOR", "vim")
+        editor = os.environ.get("EDITOR", "vim")
         subprocess.run([editor, str(config_path)])
     else:
         click.echo(config_path.read_text())

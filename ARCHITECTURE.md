@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Project Memory Tool
 
 > **Last updated:** 2026-03-25
-> Current state: v0.5.0 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
+> Current state: v0.5.1 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
 
 ---
 
@@ -15,7 +15,7 @@
 | `pmem serve` (MCP server) | ✅ Done | 4 tools, async thread pool, lazy imports, heartbeat logging |
 | `pmem status` CLI | ✅ Done | Shows index state, stale files |
 | `pmem config` CLI | ✅ Done | Print config, --edit, --global, --init-global |
-| `pmem watch` CLI | ✅ Done | watchdog file watcher, 2s debounce |
+| `pmem watch` CLI | ✅ Done | Polling-based watcher, 5s interval |
 | `pmem exclude/include` CLI | ✅ Done | Per-project pattern management |
 | `pmem install-skills` CLI | ✅ Done | Copies or symlinks skills to ~/.claude/commands/ |
 | ChromaDB integration | ✅ Done | Cosine similarity, persistent client, stale lock recovery |

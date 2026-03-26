@@ -27,7 +27,7 @@ def _run_poll(config: ProjectConfig, log: LogCallback) -> None:
         if result.files_indexed > 0:
             log(
                 f"Indexed {result.files_indexed} files — "
-                f"{result.chunks_added} added, {result.chunks_updated} updated, "
+                f"{result.chunks_added} added, {result.chunks_replaced} updated, "
                 f"{result.chunks_removed} removed "
                 f"({result.duration_seconds:.1f}s)",
                 "step",

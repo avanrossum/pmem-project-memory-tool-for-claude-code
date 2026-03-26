@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import logging.handlers
 import os
 import sys
 import time
 import warnings
+from pathlib import Path
 from typing import Any
 
 # Suppress all warnings — stray output to stderr can corrupt the MCP stdio protocol
@@ -18,10 +20,10 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-# Log to stderr so it doesn't interfere with MCP stdio protocol.
+# Log to file so it doesn't interfere with MCP stdio protocol.
 # View with: tail -f ~/.pmem-mcp.log
-_log_handler = logging.FileHandler(
-    str(__import__("pathlib").Path.home() / ".pmem-mcp.log"), mode="a"
+_log_handler = logging.handlers.RotatingFileHandler(
+    str(Path.home() / ".pmem-mcp.log"), mode="a", maxBytes=5_000_000, backupCount=2
 )
 _log_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 logger = logging.getLogger("pmem-mcp")
@@ -120,7 +122,7 @@ def _do_reindex(arguments: dict[str, Any]) -> str:
         f"Reindex complete.\n"
         f"Files indexed: {result.files_indexed}\n"
         f"Chunks added: {result.chunks_added}\n"
-        f"Chunks updated: {result.chunks_updated}\n"
+        f"Chunks updated: {result.chunks_replaced}\n"
         f"Chunks removed: {result.chunks_removed}\n"
         f"Duration: {result.duration_seconds:.1f}s"
     )
@@ -249,11 +251,14 @@ async def run_server() -> None:
     import atexit
     import signal
 
-    logger.info("SERVER_START pid=%d", __import__("os").getpid())
+    logger.info("SERVER_START pid=%d", os.getpid())
     atexit.register(lambda: logger.info("SERVER_EXIT atexit"))
 
     def _signal_handler(signum, frame):
         logger.info(f"SERVER_SIGNAL {signal.Signals(signum).name}")
+        # Re-raise as the default handler would — allows the server to be killed
+        signal.signal(signum, signal.SIG_DFL)
+        os.kill(os.getpid(), signum)
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, _signal_handler)
