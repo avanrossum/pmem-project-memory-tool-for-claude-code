@@ -14,6 +14,21 @@ So I built institutional memory for AI agents. pmem indexes your project's docum
 
 Read more about the methodology behind this: [Cognitive Offloading](https://mipyip.com/blog/cognitive-offloading) and [The Governance Documents](https://mipyip.com/blog/the-governance-documents).
 
+### Real-world comparison
+
+Same query — "identify governance-related blog posts" — run against a project with 500+ markdown files:
+
+| | **pmem (index-based)** | **Fresh search (Explore agent)** |
+|---|---|---|
+| **Results found** | 18 posts | 11 posts |
+| **Time** | ~20 seconds | ~90 seconds |
+| **Token cost** | ~5,500 | ~20,000–24,000 |
+| **Missed** | — | 7 posts (governance as supporting theme) |
+
+The fresh search cost roughly **4× the tokens** and found **7 fewer results**. The posts it missed were the ones where governance was woven into the argument without being the headline topic — exactly the kind of semantic connection that keyword search can't make.
+
+For the full breakdown — architecture decisions, the prompt that built it, and token cost analysis — read the [build story on the blog](https://mipyip.com/blog/project-memory-for-claude-code).
+
 ## How it works
 
 ```
