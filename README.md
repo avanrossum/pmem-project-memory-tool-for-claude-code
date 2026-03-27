@@ -151,7 +151,7 @@ Once registered, Claude Code has access to four tools:
   },
   "indexing": {
     "include": ["**/*.md", "**/*.txt"],
-    "exclude": [".memory/**", ".git/**", "node_modules/**", "*.lock"],
+    "exclude": [".memory/**", "**/.git/**", "**/node_modules/**", "*.lock"],
     "chunk_size": 400,
     "chunk_overlap": 80,
     "split_on_headers": true

@@ -25,7 +25,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "indexing": {
         "include": ["**/*.md", "**/*.txt"],
-        "exclude": [".memory/**", ".git/**", "node_modules/**", "*.lock"],
+        "exclude": [".memory/**", "**/.git/**", "**/node_modules/**", "*.lock"],
         "chunk_size": 400,
         "chunk_overlap": 80,
         "split_on_headers": True,
@@ -63,7 +63,7 @@ class IndexingConfig:
 
     include: list[str] = field(default_factory=lambda: ["**/*.md", "**/*.txt"])
     exclude: list[str] = field(
-        default_factory=lambda: [".memory/**", ".git/**", "node_modules/**", "*.lock"]
+        default_factory=lambda: [".memory/**", "**/.git/**", "**/node_modules/**", "*.lock"]
     )
     chunk_size: int = 400
     chunk_overlap: int = 80
