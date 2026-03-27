@@ -38,8 +38,10 @@ Everything needed for a usable, working tool.
 
 ---
 
-## Phase 3 — Power Features
+## Phase 3 — Distribution & Power Features
 
+- [ ] **PyPI publishing** — `pip install pmem` instead of git clone. Enables `pip install --upgrade` for updates and `--pre` for beta releases. GitHub Action to publish on tagged releases.
+- [ ] `pmem update` — convenience command to self-update via pip
 - [ ] Multi-collection build (architecture ready in docs/multi-collection-design.md)
 - [ ] `pmem diff "question"` — show what changed in the answer since last index
 - [ ] Support for non-markdown file types (`.py`, `.apex`, `.js`) with language-aware chunking

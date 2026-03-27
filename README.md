@@ -60,6 +60,8 @@ ollama pull nomic-embed-text
 
 ### 2. Install pmem
 
+> **PyPI package coming soon.** Once published, installation will be just `pip install pmem`. For now, install from source:
+
 ```bash
 git clone https://github.com/avanrossum/pmem-project-memory-tool-for-claude.git
 cd pmem-project-memory-tool-for-claude
