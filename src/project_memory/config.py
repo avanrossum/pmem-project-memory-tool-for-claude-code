@@ -34,6 +34,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "top_k": 8,
         "auto_reindex_on_query": False,
     },
+    "update_channel": "stable",
 }
 
 
@@ -86,6 +87,7 @@ class ProjectConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     indexing: IndexingConfig = field(default_factory=IndexingConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
+    update_channel: str = "stable"
     project_root: Path = field(default_factory=Path)
     memory_dir: Path = field(default_factory=Path)
 
@@ -99,6 +101,7 @@ class ProjectConfig:
             llm=LLMConfig(**data.get("llm", {})),
             indexing=IndexingConfig(**data.get("indexing", {})),
             query=QueryConfig(**data.get("query", {})),
+            update_channel=data.get("update_channel", "stable"),
             project_root=project_root,
             memory_dir=memory_dir,
         )

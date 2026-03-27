@@ -41,7 +41,7 @@ Do NOT use memory_query for: reading specific known files, checking current code
 If results seem stale, run `memory_reindex` to refresh.
 """
 
-GITIGNORE_ENTRIES = [".memory/chroma/", ".memory/index_state.json"]
+GITIGNORE_ENTRIES = [".memory/"]
 GITIGNORE_COMMENT = "# Project memory (generated)"
 
 
@@ -270,6 +270,17 @@ def status() -> None:
         click.echo("Stale files:")
         for f in stale:
             click.echo(f"  - {f}")
+
+    # Check for updates
+    try:
+        from project_memory.update_check import check_for_update
+
+        notice = check_for_update(channel=config.update_channel)
+        if notice:
+            click.echo()
+            click.echo(click.style(notice.strip(), fg="yellow"))
+    except Exception:
+        pass
 
 
 @cli.command()

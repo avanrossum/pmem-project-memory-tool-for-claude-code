@@ -234,6 +234,18 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         )
         elapsed = time.time() - start
         logger.info(f"OK {name} {elapsed:.1f}s ({len(text)} chars)")
+
+        # Append update notice if available (non-blocking, best-effort)
+        try:
+            from project_memory.update_check import check_for_update
+
+            config = _get_config()
+            notice = check_for_update(channel=config.update_channel)
+            if notice:
+                text += notice
+        except Exception:
+            pass  # never let update check break a tool call
+
         return [TextContent(type="text", text=text)]
     except asyncio.TimeoutError:
         logger.error(f"TIMEOUT {name} after {TOOL_TIMEOUT}s")

@@ -159,7 +159,8 @@ Once registered, Claude Code has access to four tools:
   "query": {
     "top_k": 8,
     "auto_reindex_on_query": false
-  }
+  },
+  "update_channel": "stable"
 }
 ```
 
@@ -209,6 +210,22 @@ pmem index
 - **`top_k`** — number of chunks to retrieve per query (default: 8)
 - **`auto_reindex_on_query`** — check for stale files before every query and re-embed if needed (default: false — `/welcome`, `/sleep`, and `pmem watch` handle freshness)
 
+### Update notifications
+
+pmem checks GitHub for new releases once per day and shows a notice when an update is available — both in `pmem status` output and in MCP tool responses (so Claude will tell you).
+
+By default, only stable releases trigger notifications. To opt into beta (pre-release) notifications:
+
+```json
+{
+  "update_channel": "beta"
+}
+```
+
+Set this in `.memory/config.json` (per-project) or `~/.config/pmem/config.json` (global).
+
+> **Warning:** Beta releases may contain breaking changes, incomplete features, or bugs. Use at your own risk. If something breaks, pin back to the last stable version with `git checkout v<version> && pip install -e .`
+
 ## What gets created in your project
 
 ```
@@ -219,12 +236,13 @@ your-project/
     └── index_state.json   ← gitignore (file hash registry)
 ```
 
-Add to your `.gitignore`:
+Add to your `.gitignore` (done automatically by `pmem init`):
 
 ```
-.memory/chroma/
-.memory/index_state.json
+.memory/
 ```
+
+> **Note:** Older versions of pmem added individual entries (`.memory/chroma/`, `.memory/index_state.json`). The single `.memory/` entry is preferred — it catches transient files like lock files that the specific entries miss.
 
 ## Skills (optional)
 
