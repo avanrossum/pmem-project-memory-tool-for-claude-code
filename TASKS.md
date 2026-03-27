@@ -15,6 +15,8 @@
 
 | Task | Notes |
 |------|-------|
+| PyPI publishing | `pip install pmem` — enables clean install/upgrade path. GitHub Action for release automation. |
+| `pmem update` command | Self-update via pip once on PyPI |
 | Docs: mcp-setup.md | MCP registration walkthrough (now ~/.claude.json, not settings.json) |
 | `pmem init --interactive` | Guided setup — low priority |
 | Non-markdown file support | `.py`, `.apex`, `.js` with language-aware chunking (Phase 3) |
@@ -32,3 +34,7 @@
 | LLM synthesis default disabled | 2026-03-25 | Claude interprets chunks directly — no need for second LLM. Available as opt-in. |
 | README + docs for open source | 2026-03-25 | README covers full setup, CLI reference, skills, config, known issues. |
 | Watcher rewrite + tests | 2026-03-25 | Replaced watchdog/FSEvents with polling (5s). Fixed fnmatch bug. 8 new watcher tests, 27 total. Removed watchdog dependency. |
+| Update notifications | 2026-03-27 | GitHub release checker with daily cache, stable/beta channels. Hooked into MCP responses and `pmem status`. |
+| Nested exclude fix | 2026-03-27 | Default patterns changed to `**/node_modules/**` and `**/.git/**`. |
+| Skill ToolSearch fix | 2026-03-27 | Added full MCP tool name to /welcome, /sleep, /reindex skills. |
+| .gitignore simplification | 2026-03-27 | `pmem init` now adds `.memory/` instead of individual entries. |

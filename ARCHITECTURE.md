@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Project Memory Tool
 
-> **Last updated:** 2026-03-25
-> Current state: v0.5.1 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
+> **Last updated:** 2026-03-27
+> Current state: v0.5.2 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
 
 ---
 
@@ -26,6 +26,7 @@
 | Global config | ✅ Done | ~/.config/pmem/config.json, deep-merged with project |
 | Skills | ✅ Done | /welcome, /sleep, /reindex — all use MCP tools |
 | File watcher | ✅ Done | Polling-based (5s interval), cross-platform, no watchdog dependency |
+| Update checker | ✅ Done | GitHub release check with daily cache, stable/beta channels |
 | Multi-collection | 📐 Designed | See docs/multi-collection-design.md |
 
 ---
@@ -41,6 +42,7 @@
 | `src/project_memory/query.py` | Retrieval logic + optional LLM synthesis |
 | `src/project_memory/mcp_server.py` | MCP server — async thread pool, lazy imports, file logging |
 | `src/project_memory/watcher.py` | Polling-based file watcher (5s interval) |
+| `src/project_memory/update_check.py` | GitHub release checker with daily cache |
 | `skills/welcome.md` | /welcome skill — session start |
 | `skills/sleep.md` | /sleep skill — session governance pass |
 | `skills/reindex.md` | /reindex skill — quick trigger |

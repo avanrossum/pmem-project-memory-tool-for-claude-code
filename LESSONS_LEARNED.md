@@ -62,6 +62,15 @@ An earlier version had `_cleanup_stale_locks()` that deleted SQLite WAL/SHM file
 ### Claude Code periodically kills and restarts MCP server subprocesses
 Observed during testing: the MCP server process exits cleanly (`SERVER_SHUTDOWN` + `SERVER_EXIT atexit`) after minutes of idle time, then Claude Code restarts it seconds later. If a tool call is in flight when this happens, it gets dropped. The `/sleep` skill now runs reindex as Step 2 (early) instead of Step 6 (late) to avoid this.
 
+### Exclude patterns must use `**/` prefix to match nested directories
+The default exclude `node_modules/**` only matched at the project root because gitignore-style patterns without a leading `**/` are anchored. A nested `infographics/node_modules/` passed through indexing and polluted the vector store. The fix: `**/node_modules/**`. Same applies to `.git/**` → `**/.git/**`. Existing projects keep their old config — only new `pmem init` projects get the corrected defaults.
+
+### MCP tool names are prefixed at runtime
+Skills that reference `memory_reindex` fail ToolSearch because Claude Code registers the tool as `mcp__project-memory__memory_reindex`. When instructing Claude to find an MCP tool, use a broad keyword search (e.g. `"memory"`) rather than the exact tool name.
+
+### GitHub API repo redirects aren't followed by httpx by default
+The repo was renamed from `pmem-project-memory-tool-for-claude` to `pmem-project-memory-tool-for-claude-code`. GitHub returns a 301 redirect, but the releases endpoint returned `"Moved Permanently"` as JSON rather than actually redirecting. Always use the canonical repo name in API URLs.
+
 ### fnmatch doesn't understand `**` — use pathspec everywhere
 Python's `fnmatch` treats `*` and `**` identically and doesn't do recursive directory matching. `fnmatch.fnmatch("README.md", "**/*.md")` returns `False`. The watcher originally used `fnmatch` while the indexer used `pathspec` (gitignore-style matching), causing the watcher to silently ignore files. Rule: always use `pathspec` for glob pattern matching in this project — never `fnmatch`.
 

@@ -2,6 +2,23 @@
 
 ---
 
+## [0.5.2] — 2026-03-27
+
+### Added
+- **Update notifications** — checks GitHub releases once per day, appends notice to `pmem status` and MCP tool responses when a newer version is available. Supports stable/beta channels via `update_channel` config field.
+- **Beta release track** — set `"update_channel": "beta"` to get notified about pre-releases. Documented in README.
+- **`update_channel` config field** — new top-level config option (default: `"stable"`)
+
+### Fixed
+- **Nested `node_modules` indexed** — exclude pattern `node_modules/**` was anchored to root, so nested instances (e.g. `infographics/node_modules/`) slipped through. Changed defaults to `**/node_modules/**` and `**/.git/**`.
+- **`.gitignore` too specific** — `pmem init` now adds `.memory/` instead of `.memory/chroma/` and `.memory/index_state.json` individually. Catches transient files like `index_state.lock`.
+- **Skill ToolSearch failure** — `/welcome`, `/sleep`, and `/reindex` referenced `memory_reindex` but the runtime MCP name is `mcp__project-memory__memory_reindex`. Added full name and hint to search by keyword `"memory"`.
+- **Wrong GitHub repo name** in update checker — was missing `-code` suffix from repo URL
+
+### Changed
+- PyPI publishing added to Phase 3 roadmap
+- README install section notes PyPI is pending
+
 ## [0.5.1] — 2026-03-26
 
 ### Fixed

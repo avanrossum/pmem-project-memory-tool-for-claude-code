@@ -1,6 +1,6 @@
 # ROADMAP.md — Project Memory Tool
 
-> **Last updated:** 2026-03-25
+> **Last updated:** 2026-03-27
 
 ---
 
@@ -25,7 +25,7 @@ Everything needed for a usable, working tool.
 - [x] `pmem watch` — polling-based watcher; re-indexes on change (5s interval, cross-platform)
 - [x] Global default config at `~/.config/pmem/config.json` — deep-merged with project config
 - [ ] `pmem init --interactive` — guided setup (asks for endpoints, writes config)
-- [x] `pmem init` auto-appends `.memory/chroma/` and `index_state.json` to `.gitignore`
+- [x] `pmem init` auto-appends `.memory/` to `.gitignore`
 - [x] `pmem init` appends `CLAUDE.md` snippet if CLAUDE.md exists
 - [x] Better error messages — detect "Ollama not running", "model not found", actionable advice
 - [x] `/welcome`, `/sleep`, `/reindex` skills — using MCP tools, not bash
