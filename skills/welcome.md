@@ -23,13 +23,13 @@ If these don't exist, adapt to whatever documentation the project uses.
 
 If this project has a `.memory/config.json` (i.e. the project memory tool is set up):
 
-**Use the `memory_reindex` MCP tool** to refresh the index. Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
+**Use the `memory_reindex` MCP tool** to refresh the index. The tool's full name is `mcp__project-memory__memory_reindex` — if you need to search for it via ToolSearch, search for `"memory"` (not the full name, which may not match).
+
+Do NOT run `pmem index` as a bash command — running it via bash risks leaving database locks if interrupted.
 
 After the reindex completes, briefly confirm it to the user — e.g. "Memory index refreshed (0 files changed)" or "Memory index updated (3 files re-embedded)." Don't dump the raw tool output, just a one-line summary.
 
-If the `memory_reindex` MCP tool is not available (e.g. MCP server not registered), skip this step silently.
-
-If the MCP tool is not available, skip silently.
+If the MCP tool is not available (e.g. MCP server not registered), skip this step silently.
 
 ---
 

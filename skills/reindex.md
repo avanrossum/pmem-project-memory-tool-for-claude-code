@@ -1,6 +1,6 @@
 # /reindex — Refresh Project Memory Index
 
-Run the `memory_reindex` MCP tool to refresh the project's memory index.
+Run the `memory_reindex` MCP tool to refresh the project's memory index. The tool's full name is `mcp__project-memory__memory_reindex` — if you need to search for it via ToolSearch, search for `"memory"` (not the full name, which may not match).
 
 This embeds any files that have changed since the last index. It is incremental — unchanged files are skipped.
 

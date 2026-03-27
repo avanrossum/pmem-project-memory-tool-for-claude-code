@@ -21,7 +21,7 @@ If none of these exist, adapt: look for whatever passes as documentation in this
 
 ## Step 2 — Update Project Memory Index (do this early)
 
-If this project has a `.memory/config.json`, **use the `memory_reindex` MCP tool now** — before the governance updates below. This ensures the index captures any documentation changes made during the session. Do it early because the MCP server may not be available later in the flow.
+If this project has a `.memory/config.json`, **use the `memory_reindex` MCP tool now** — before the governance updates below. The tool's full name is `mcp__project-memory__memory_reindex` — if you need to search for it via ToolSearch, search for `"memory"` (not the full name, which may not match). This ensures the index captures any documentation changes made during the session. Do it early because the MCP server may not be available later in the flow.
 
 After the reindex completes, briefly confirm it — e.g. "Memory index refreshed (2 files re-embedded)."
 
