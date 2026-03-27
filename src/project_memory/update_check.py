@@ -14,7 +14,7 @@ from project_memory import __version__
 
 logger = logging.getLogger("pmem-mcp")
 
-GITHUB_REPO = "avanrossum/pmem-project-memory-tool-for-claude"
+GITHUB_REPO = "avanrossum/pmem-project-memory-tool-for-claude-code"
 RELEASES_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 
 # Cache lives in the global config dir so it's per-installation, not per-project.
@@ -127,7 +127,7 @@ def check_for_update(channel: str = "stable") -> str | None:
         notice = (
             f"\n>>> pmem update available: {__version__} -> "
             f"{latest_tag.lstrip('v')}{label}. "
-            f"Run: pip install --upgrade project-memory-tool"
+            f"Run `git pull` in your pmem repo and reinstall."
         )
 
     _save_cache({
