@@ -14,6 +14,24 @@ So I built institutional memory for AI agents. pmem indexes your project's docum
 
 Read more about the methodology behind this: [Cognitive Offloading](https://mipyip.com/blog/cognitive-offloading) and [The Governance Documents](https://mipyip.com/blog/the-governance-documents).
 
+### How pmem differs from session memory tools
+
+Most Claude Code memory tools — claude-mem, claude-brain, supermemory — solve session continuity: what did Claude do last time? They capture Claude's actions, compress conversation history, and replay it into future sessions.
+
+pmem solves a different problem: **what does the project know?**
+
+Your project has architecture decisions, task logs, lessons learned, archived roadmaps, and governance documents accumulated over months. That institutional knowledge exists in files, not in session transcripts. When you ask "why did we choose this auth approach?" the answer isn't in what Claude did yesterday — it's in an ADR you wrote three months ago.
+
+| | Session memory tools | pmem |
+|---|---|---|
+| **Remembers** | What Claude did | What the project documented |
+| **Source data** | Session transcripts, tool usage | Markdown, text, code files in your repo |
+| **Search method** | Keyword / hybrid over sessions | Semantic (vector) search over project docs |
+| **Requires** | Cloud API or session capture hooks | Local only — Ollama + ChromaDB, no API keys |
+| **Use case** | "Continue where we left off" | "What did we decide about X six months ago?" |
+
+pmem doesn't replace session memory. It fills the gap that session memory can't: retrieving decisions, context, and rationale from your project's documentation by meaning, not by keyword.
+
 ### Real-world comparison
 
 Same query — "identify governance-related blog posts" — run against a project with 500+ markdown files:
