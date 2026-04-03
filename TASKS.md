@@ -38,3 +38,4 @@
 | Nested exclude fix | 2026-03-27 | Default patterns changed to `**/node_modules/**` and `**/.git/**`. |
 | Skill ToolSearch fix | 2026-03-27 | Added full MCP tool name to /welcome, /sleep, /reindex skills. |
 | .gitignore simplification | 2026-03-27 | `pmem init` now adds `.memory/` instead of individual entries. |
+| Minimum chunk size merging | 2026-04-03 | `min_chunk_size` config (default 50 words). Tiny header sections merge with neighbors. 6 new tests. |

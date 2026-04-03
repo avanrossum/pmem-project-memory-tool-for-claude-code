@@ -28,6 +28,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "exclude": [".memory/**", "**/.git/**", "**/node_modules/**", "*.lock"],
         "chunk_size": 400,
         "chunk_overlap": 80,
+        "min_chunk_size": 50,
         "split_on_headers": True,
     },
     "query": {
@@ -67,6 +68,7 @@ class IndexingConfig:
     )
     chunk_size: int = 400
     chunk_overlap: int = 80
+    min_chunk_size: int = 50
     split_on_headers: bool = True
 
 

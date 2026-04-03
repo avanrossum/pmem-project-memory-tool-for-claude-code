@@ -136,6 +136,10 @@ def chunk_markdown(text: str, source_file: str, file_hash: str, config: ProjectC
     else:
         sections = [("", text)]
 
+    min_chunk_size = config.indexing.min_chunk_size
+    if split_on_headers and min_chunk_size > 0:
+        sections = _merge_small_sections(sections, min_chunk_size)
+
     chunks: list[Chunk] = []
     for heading_path, section_text in sections:
         section_text = section_text.strip()
@@ -209,6 +213,51 @@ def _split_by_headers(text: str) -> list[tuple[str, str]]:
         sections.append((heading_path, full_text))
 
     return sections
+
+
+def _merge_small_sections(
+    sections: list[tuple[str, str]], min_words: int
+) -> list[tuple[str, str]]:
+    """Merge undersized sections forward into the next section.
+
+    Sections with fewer than min_words words are combined with the following
+    section. If the last section is undersized, it merges backward into the
+    previous one. This prevents tiny chunks (e.g. a heading with one word
+    beneath it) from becoming standalone embeddings with no semantic value.
+    """
+    if len(sections) <= 1:
+        return sections
+
+    merged: list[tuple[str, str]] = []
+    carry_text = ""
+    carry_heading = ""
+
+    for heading, text in sections:
+        if carry_text:
+            # Prepend carried text to this section
+            text = carry_text + "\n\n" + text
+            heading = carry_heading or heading
+            carry_text = ""
+            carry_heading = ""
+
+        word_count = len(text.split())
+        if word_count < min_words:
+            # Too small — carry forward
+            carry_text = text
+            carry_heading = heading
+        else:
+            merged.append((heading, text))
+
+    # If there's leftover carry, merge backward into the last section
+    if carry_text:
+        if merged:
+            last_heading, last_text = merged[-1]
+            merged[-1] = (last_heading, last_text + "\n\n" + carry_text)
+        else:
+            # Everything was undersized — emit as a single chunk
+            merged.append((carry_heading, carry_text))
+
+    return merged
 
 
 def _split_by_size(text: str, chunk_size: int, overlap: int) -> list[str]:

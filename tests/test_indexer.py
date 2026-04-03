@@ -7,6 +7,7 @@ import pytest
 from project_memory.config import ProjectConfig, create_default_config, load_config
 from project_memory.indexer import (
     Chunk,
+    _merge_small_sections,
     _split_by_headers,
     _split_by_size,
     chunk_markdown,
@@ -85,6 +86,81 @@ def test_chunk_markdown(tmp_path):
     assert chunks[0].source_file == "test.md"
     assert chunks[0].heading_path == "Heading"
     assert chunks[0].file_hash == "abc123"
+
+
+def test_merge_small_sections_forward():
+    """Small sections merge forward into the next section."""
+    sections = [
+        ("Heading A", "tiny"),
+        ("Heading B", " ".join(f"word{i}" for i in range(60))),
+    ]
+    merged = _merge_small_sections(sections, min_words=50)
+    assert len(merged) == 1
+    assert "tiny" in merged[0][1]
+    assert "word0" in merged[0][1]
+
+
+def test_merge_small_sections_backward():
+    """Last undersized section merges backward."""
+    sections = [
+        ("Heading A", " ".join(f"word{i}" for i in range(60))),
+        ("Heading B", "tiny tail"),
+    ]
+    merged = _merge_small_sections(sections, min_words=50)
+    assert len(merged) == 1
+    assert "word0" in merged[0][1]
+    assert "tiny tail" in merged[0][1]
+
+
+def test_merge_small_sections_chain():
+    """Multiple consecutive small sections merge into the next large one."""
+    sections = [
+        ("H1", "one"),
+        ("H2", "two"),
+        ("H3", " ".join(f"word{i}" for i in range(60))),
+    ]
+    merged = _merge_small_sections(sections, min_words=50)
+    assert len(merged) == 1
+    assert "one" in merged[0][1]
+    assert "two" in merged[0][1]
+    assert "word0" in merged[0][1]
+
+
+def test_merge_small_sections_all_small():
+    """When every section is undersized, they merge into a single chunk."""
+    sections = [
+        ("H1", "alpha"),
+        ("H2", "beta"),
+        ("H3", "gamma"),
+    ]
+    merged = _merge_small_sections(sections, min_words=50)
+    assert len(merged) == 1
+    assert "alpha" in merged[0][1]
+    assert "gamma" in merged[0][1]
+
+
+def test_merge_small_sections_preserves_large():
+    """Sections above the threshold are left alone."""
+    big = " ".join(f"word{i}" for i in range(60))
+    sections = [
+        ("H1", big),
+        ("H2", big),
+    ]
+    merged = _merge_small_sections(sections, min_words=50)
+    assert len(merged) == 2
+
+
+def test_chunk_markdown_min_chunk_size(tmp_path):
+    """chunk_markdown merges tiny header sections instead of emitting them."""
+    create_default_config(tmp_path)
+    config = load_config(tmp_path)
+
+    # Simulate a changelog with tiny sections
+    text = "# Changelog\n\n## Added\n\n- CTA\n\n## Changed\n\n- Updated button style with new colors and hover states for the primary action component\n\n## Fixed\n\n- Resolved alignment issue in the navigation bar that caused items to shift on mobile viewport sizes when scrolling"
+    chunks = chunk_markdown(text, "CHANGELOG.md", "abc123", config)
+    # "CTA" alone (1 word) should NOT be its own chunk
+    for c in chunks:
+        assert c.text.strip() != "## Added\n\n- CTA", f"Tiny section should have been merged, got: {c.text!r}"
 
 
 def test_scan_files(tmp_path):

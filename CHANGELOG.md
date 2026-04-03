@@ -2,6 +2,19 @@
 
 ---
 
+## [0.5.3] — 2026-04-03
+
+### Added
+- **Minimum chunk size** — new `min_chunk_size` config option (default: 50 words). Sections below this threshold are merged with adjacent sections instead of becoming standalone chunks. Prevents tiny, semantically meaningless chunks (e.g. "CTA", single headings) from polluting the vector store.
+- **`_merge_small_sections()` in indexer** — merges undersized header sections forward into the next section; last undersized section merges backward. Chained small sections accumulate correctly.
+- 6 new tests for section merging (forward, backward, chain, all-small, preserves-large, integration)
+
+### Changed
+- Test count: 27 → 33
+
+### Migration
+- Existing indexes should be rebuilt with `pmem index --force` to re-chunk with the new merge logic. Without rebuilding, existing tiny chunks remain in the index.
+
 ## [0.5.2] — 2026-03-27
 
 ### Added

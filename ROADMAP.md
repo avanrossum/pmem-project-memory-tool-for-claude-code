@@ -1,6 +1,6 @@
 # ROADMAP.md — Project Memory Tool
 
-> **Last updated:** 2026-03-27
+> **Last updated:** 2026-04-03
 
 ---
 
@@ -33,6 +33,7 @@ Everything needed for a usable, working tool.
 - [x] MCP server stability — async thread pool, lazy imports, heartbeat logging, warning suppression
 - [x] LLM synthesis disabled by default — Claude interprets chunks directly
 - [x] `auto_reindex_on_query` disabled by default — skills handle freshness
+- [x] Minimum chunk size merging — `min_chunk_size` (default 50 words) prevents tiny header sections from becoming standalone chunks
 - [ ] Multi-collection support — designed (see `docs/multi-collection-design.md`), not yet implemented
 - [ ] LanceDB evaluation — shelved (ChromaDB is fine for typical use)
 

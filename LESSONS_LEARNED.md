@@ -71,6 +71,9 @@ Skills that reference `memory_reindex` fail ToolSearch because Claude Code regis
 ### GitHub API repo redirects aren't followed by httpx by default
 The repo was renamed from `pmem-project-memory-tool-for-claude` to `pmem-project-memory-tool-for-claude-code`. GitHub returns a 301 redirect, but the releases endpoint returned `"Moved Permanently"` as JSON rather than actually redirecting. Always use the canonical repo name in API URLs.
 
+### Tiny chunks from header splitting pollute search results
+Markdown header-aware chunking splits at every H1/H2/H3 boundary with no minimum size. Changelog entries, table-of-contents sections, and stub headings produce 1-3 word chunks that embed with minimal semantic signal but match many queries (high false-positive rate). Fix: `_merge_small_sections()` combines undersized sections with neighbors before chunking. Default `min_chunk_size` is 50 words. Existing indexes need `pmem index --force` to re-chunk.
+
 ### fnmatch doesn't understand `**` — use pathspec everywhere
 Python's `fnmatch` treats `*` and `**` identically and doesn't do recursive directory matching. `fnmatch.fnmatch("README.md", "**/*.md")` returns `False`. The watcher originally used `fnmatch` while the indexer used `pathspec` (gitignore-style matching), causing the watcher to silently ignore files. Rule: always use `pathspec` for glob pattern matching in this project — never `fnmatch`.
 
