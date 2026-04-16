@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import fcntl
 import logging
+import os
+import shutil
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 import chromadb
@@ -16,26 +20,79 @@ COLLECTION_NAME = "project_memory"
 logger = logging.getLogger(__name__)
 
 
+def _wipe_chroma_dir(chroma_dir: Path) -> None:
+    """Remove and recreate a corrupted ChromaDB directory."""
+    if chroma_dir.exists():
+        shutil.rmtree(chroma_dir)
+        logger.info("Removed corrupted ChromaDB directory: %s", chroma_dir)
+    chroma_dir.mkdir(parents=True, exist_ok=True)
+
+
 class ChunkStore:
     """Wrapper around ChromaDB for storing and querying embedded chunks."""
 
     def __init__(self, config: ProjectConfig) -> None:
-        """Initialize the ChromaDB client and collection."""
+        """Initialize the ChromaDB client and collection.
+
+        Acquires an exclusive file lock to prevent concurrent access to the
+        ChromaDB database. If the database is corrupted (e.g. from a previous
+        interrupted write or version mismatch), it is automatically wiped and
+        a full reindex will be triggered.
+        """
         chroma_dir = config.memory_dir / "chroma"
         chroma_dir.mkdir(parents=True, exist_ok=True)
+
+        # Acquire exclusive lock to prevent concurrent ChromaDB access
+        self._lock_path = config.memory_dir / "chroma.lock"
+        self._lock_fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR)
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
         try:
-            self._client = chromadb.PersistentClient(path=str(chroma_dir))
-            self._collection = self._client.get_or_create_collection(
-                name=COLLECTION_NAME,
-                metadata={"hnsw:space": "cosine"},
+            self._open_chroma(chroma_dir)
+        except Exception as first_exc:
+            logger.warning(
+                "ChromaDB open failed (%s: %s), wiping corrupt database and rebuilding",
+                type(first_exc).__name__,
+                first_exc,
             )
-        except (sqlite3.OperationalError, chromadb.errors.ChromaError) as exc:
-            logger.warning("ChromaDB open failed (%s), retrying: %s", type(exc).__name__, exc)
-            self._client = chromadb.PersistentClient(path=str(chroma_dir))
-            self._collection = self._client.get_or_create_collection(
-                name=COLLECTION_NAME,
-                metadata={"hnsw:space": "cosine"},
-            )
+            # ChromaDB caches a singleton System keyed by persist path.
+            # If the first open fails mid-initialization, the broken system
+            # stays in the cache and all subsequent PersistentClient() calls
+            # for this path silently reuse it.  We must clear it before retry.
+            from chromadb.api.shared_system_client import SharedSystemClient
+            SharedSystemClient.clear_system_cache()
+
+            _wipe_chroma_dir(chroma_dir)
+            try:
+                self._open_chroma(chroma_dir)
+            except Exception:
+                self._release_lock()
+                raise
+
+    def _open_chroma(self, chroma_dir: Path) -> None:
+        """Open the ChromaDB client and collection."""
+        self._client = chromadb.PersistentClient(path=str(chroma_dir))
+        self._collection = self._client.get_or_create_collection(
+            name=COLLECTION_NAME,
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    def _release_lock(self) -> None:
+        """Release the file lock on the ChromaDB directory."""
+        if hasattr(self, "_lock_fd") and self._lock_fd >= 0:
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+                os.close(self._lock_fd)
+            except OSError:
+                pass
+            self._lock_fd = -1
+
+    def close(self) -> None:
+        """Release resources and the file lock."""
+        self._release_lock()
+
+    def __del__(self) -> None:
+        self._release_lock()
 
     @property
     def count(self) -> int:

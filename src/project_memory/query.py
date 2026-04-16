@@ -24,9 +24,12 @@ def retrieve(question: str, config: ProjectConfig, top_k: int | None = None) -> 
     store = ChunkStore(config)
 
     if store.count == 0:
+        store.close()
         return []
 
-    return store.query(embeddings[0], top_k=k)
+    results = store.query(embeddings[0], top_k=k)
+    store.close()
+    return results
 
 
 def synthesize(question: str, chunks: list[dict[str, Any]], config: ProjectConfig) -> str:

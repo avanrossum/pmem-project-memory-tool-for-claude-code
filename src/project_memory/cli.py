@@ -248,6 +248,8 @@ def status() -> None:
     from project_memory.store import ChunkStore
 
     store = ChunkStore(config)
+    chunk_count = store.count
+    store.close()
     state_path = config.memory_dir / "index_state.json"
     state = IndexState.load(state_path)
     stale = get_stale_files(config)
@@ -259,7 +261,7 @@ def status() -> None:
 
     click.echo(f"Project:         {config.project_name}")
     click.echo(f"Indexed files:   {len(state.files)}")
-    click.echo(f"Total chunks:    {store.count}")
+    click.echo(f"Total chunks:    {chunk_count}")
     click.echo(f"Last indexed:    {last_indexed}")
     click.echo(f"Stale files:     {len(stale)}")
     click.echo(f"Embedding model: {config.embedding.model}")

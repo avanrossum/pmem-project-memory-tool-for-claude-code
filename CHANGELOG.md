@@ -2,6 +2,17 @@
 
 ---
 
+## [0.5.4] — 2026-04-15
+
+### Fixed
+- **ChromaDB corruption auto-recovery** — if the ChromaDB database is corrupted (e.g. from interrupted writes, concurrent access, or version mismatch), the store is now automatically wiped and rebuilt. Previously this caused an unrecoverable `PanicException` crash. Also clears ChromaDB's internal singleton cache so the retry doesn't reuse the dead connection.
+- **Concurrent access protection** — `ChunkStore` now acquires an exclusive file lock (`chroma.lock`) before opening ChromaDB. Prevents the MCP server and CLI from corrupting the database by accessing it simultaneously.
+- **Post-corruption full reindex** — when the vector store is empty but `index_state.json` tracks chunks, the indexer detects this as a post-corruption state and automatically queues all files for reindexing instead of silently leaving the store empty.
+- **Store lock leak** — all `ChunkStore` call sites (`index`, `query`, `status`) now properly `close()` the store to release the file lock promptly.
+
+### Changed
+- **ChromaDB version pinned to `>=1.0.0,<2`** — was `>=0.5.0`. The 0.x internal schema is incompatible with 1.x and was a potential corruption vector during upgrades.
+
 ## [0.5.3] — 2026-04-03
 
 ### Added

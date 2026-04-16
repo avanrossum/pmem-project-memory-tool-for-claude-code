@@ -441,6 +441,30 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
     _log("Opening vector store", "step")
     store = ChunkStore(config)
 
+    # If the store was wiped due to corruption, all tracked chunk_ids are
+    # invalid — clear them so we do a full reindex rather than trying to
+    # delete phantom IDs.
+    if store.count == 0 and state.files:
+        stale_count = sum(
+            len(fi.get("chunk_ids", [])) for fi in state.files.values()
+        )
+        if stale_count > 0:
+            _log(
+                f"Vector store is empty but state tracks {stale_count} chunks "
+                "— database was likely rebuilt after corruption. "
+                "Clearing stale state and forcing full reindex.",
+                "warning",
+            )
+            # Queue all previously-tracked files for reindexing
+            already_queued = {rel for rel, _ in files_to_index}
+            for rel_str in list(state.files):
+                if rel_str not in already_queued and rel_str in current_files:
+                    files_to_index.append((rel_str, current_files[rel_str]))
+            # Clear chunk_ids from state so we don't try to delete them
+            for fi in state.files.values():
+                fi.pop("chunk_ids", None)
+            deleted_files.clear()
+
     # Remove chunks for deleted files
     for rel_str in deleted_files:
         chunk_ids = state.files[rel_str].get("chunk_ids", [])
@@ -503,6 +527,7 @@ def run_index(config: ProjectConfig, force: bool = False, dry_run: bool = False,
                 "chunk_ids": [c.chunk_id for c in file_chunks],
             }
 
+    store.close()
     state.save(state_path)
     result.duration_seconds = time.time() - start_time
     return result

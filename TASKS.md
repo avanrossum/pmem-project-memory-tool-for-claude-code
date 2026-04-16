@@ -39,3 +39,4 @@
 | Skill ToolSearch fix | 2026-03-27 | Added full MCP tool name to /welcome, /sleep, /reindex skills. |
 | .gitignore simplification | 2026-03-27 | `pmem init` now adds `.memory/` instead of individual entries. |
 | Minimum chunk size merging | 2026-04-03 | `min_chunk_size` config (default 50 words). Tiny header sections merge with neighbors. 6 new tests. |
+| ChromaDB corruption resilience | 2026-04-15 | Auto-wipe + rebuild on corrupt DB, exclusive file lock to prevent concurrent access, singleton cache clear, proper store cleanup. ChromaDB pinned to `>=1.0.0,<2`. |
