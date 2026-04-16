@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Project Memory Tool
 
-> **Last updated:** 2026-03-27
-> Current state: v0.5.2 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
+> **Last updated:** 2026-04-15
+> Current state: v0.5.4 — Phase 1 complete, most of Phase 2 complete. MCP server stable in production use.
 
 ---
 
@@ -18,7 +18,7 @@
 | `pmem watch` CLI | ✅ Done | Polling-based watcher, 5s interval |
 | `pmem exclude/include` CLI | ✅ Done | Per-project pattern management |
 | `pmem install-skills` CLI | ✅ Done | Copies or symlinks skills to ~/.claude/commands/ |
-| ChromaDB integration | ✅ Done | Cosine similarity, persistent client, stale lock recovery |
+| ChromaDB integration | ✅ Done | Cosine similarity, persistent client, corruption auto-recovery, exclusive file locking |
 | Embedding client (Ollama) | ✅ Done | Batch /api/embed, OpenAI-compatible fallback |
 | LLM synthesis client | ✅ Done | Disabled by default, opt-in for terminal use |
 | Markdown chunker | ✅ Done | Header-aware splitting, word + char limits |
@@ -38,7 +38,7 @@
 | `src/project_memory/cli.py` | Click CLI — all `pmem` subcommands |
 | `src/project_memory/config.py` | Config loading, validation, defaults, global config, deep merge |
 | `src/project_memory/indexer.py` | File scanning, chunking, hash comparison, embedding orchestration |
-| `src/project_memory/store.py` | ChromaDB wrapper — upsert, query, delete, stale lock recovery |
+| `src/project_memory/store.py` | ChromaDB wrapper — upsert, query, delete, corruption recovery, file locking |
 | `src/project_memory/query.py` | Retrieval logic + optional LLM synthesis |
 | `src/project_memory/mcp_server.py` | MCP server — async thread pool, lazy imports, file logging |
 | `src/project_memory/watcher.py` | Polling-based file watcher (5s interval) |
@@ -96,7 +96,7 @@ The MCP server (`pmem serve`) runs as a subprocess spawned by Claude Code via st
 
 | Dependency | Version | Reason |
 |------------|---------|--------|
-| `chromadb` | latest stable | Vector store — file-based, no server required |
+| `chromadb` | `>=1.0.0,<2` | Vector store — file-based, no server required |
 | `mcp` | latest stable | Official Anthropic MCP Python SDK |
 | `click` | latest stable | CLI framework |
 | `httpx` | latest stable | HTTP client for embedding + LLM calls |

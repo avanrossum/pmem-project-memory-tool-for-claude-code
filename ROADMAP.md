@@ -1,6 +1,6 @@
 # ROADMAP.md — Project Memory Tool
 
-> **Last updated:** 2026-04-03
+> **Last updated:** 2026-04-15
 
 ---
 

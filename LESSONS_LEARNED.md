@@ -80,5 +80,11 @@ Python's `fnmatch` treats `*` and `**` identically and doesn't do recursive dire
 ### Filesystem event watchers (watchdog/FSEvents) are unreliable for this use case
 macOS FSEvents silently drops events in certain conditions (temp directories, files created by subprocess). After debugging multiple missed-detection cases, we replaced watchdog with simple 5-second polling. The indexer already has hash-based change detection, so polling is just as effective and works identically on all platforms. Simpler, fewer dependencies, more reliable.
 
+### ChromaDB's SharedSystemClient caches broken connections
+ChromaDB's `PersistentClient` uses a singleton cache (`SharedSystemClient._identifier_to_system`) keyed by the persist directory path. If the first open fails mid-`start()` (e.g. due to database corruption), the broken `System` object stays in the cache. All subsequent `PersistentClient()` calls for the same path skip initialization entirely and reuse the dead connection, producing confusing "tenant not found" errors. Fix: call `SharedSystemClient.clear_system_cache()` before retrying. This is an internal API but the only way to force a clean retry within the same process.
+
+### ChromaDB concurrent access causes database corruption
+ChromaDB's embedded SQLite does not handle multiple writers safely. If the MCP server and CLI `pmem index` open the same `.memory/chroma/` directory simultaneously, the database can be left in a state that causes a Rust panic (`range start index N out of range for slice of length M`) on next open. Fix: exclusive file lock (`chroma.lock`) around all ChromaDB access. The lock is held for the lifetime of the `ChunkStore` instance and released via `close()`.
+
 ### The "Interrupted" cascade in Claude Code
 When Claude Code enters an "Interrupted" state (from any cause — MCP failure, bash error, user interrupt), subsequent tool calls also fail with "Interrupted." The session becomes effectively unrecoverable. This is a Claude Code bug, not specific to pmem, but MCP server instability can trigger it. Updating to the latest Claude Code version helped.
